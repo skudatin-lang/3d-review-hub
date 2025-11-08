@@ -273,6 +273,33 @@ body {
     grid-template-columns: 1fr 1fr;
     gap: 15px;
 }
+.form-group {
+    margin-bottom: 15px;
+}
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+/* Увеличим поле описания */
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    min-height: 100px;
+    height: 120px;
+    resize: vertical;
+    font-size: 14px;
+    line-height: 1.5;
+}
 .file-upload {
     margin-bottom: 10px;
 }
