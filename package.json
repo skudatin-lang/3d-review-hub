@@ -1,6 +1,8 @@
 {
   "name": "3d-review-hub",
   "version": "1.0.0",
+  "description": "SaaS платформа для 3D моделеров",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
