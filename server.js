@@ -14,55 +14,22 @@ const server = http.createServer(app);
 const io = socketIo(server);
 
 const PORT = process.env.PORT || 3000;
-
-// === Папки ===
-const UPLOADS_PROJECTS = 'uploads/projects';
-const UPLOADS_PORTFOLIO = 'uploads/portfolio';
 const DB_FILE = 'database.json';
+const UPLOADS_DIR = 'uploads/projects';
 
-[UPLOADS_PROJECTS, UPLOADS_PORTFOLIO].forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
-
-// === База данных ===
-function readDB() {
-  try {
-    if (!fs.existsSync(DB_FILE)) {
-      fs.writeFileSync(DB_FILE, JSON.stringify({ users: [], projects: [], portfolioItems: [] }));
-      return { users: [], projects: [], portfolioItems: [] };
-    }
-    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-  } catch (e) {
-    console.error('DB error:', e);
-    return { users: [], projects: [], portfolioItems: [] };
-  }
+// Создаём папки
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-function writeDB(data) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-}
-
-// === Сессии ===
-app.use(session({
-  secret: process.env.SESSION_SECRET || '3d-review-hub-secret-2025',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
-}));
-
-// === Multer Storage ===
-const projectStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOADS_PROJECTS),
+// Multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
   filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`)
 });
 
-const portfolioStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOADS_PORTFOLIO),
-  filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`)
-});
-
-const uploadProject = multer({
-  storage: projectStorage,
+const upload = multer({
+  storage,
   fileFilter: (req, file, cb) => {
     const allowed = ['.stl', '.glb', '.obj'];
     if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true);
@@ -71,14 +38,36 @@ const uploadProject = multer({
   limits: { fileSize: 100 * 1024 * 1024 }
 });
 
-const uploadPortfolio = multer({ storage: portfolioStorage, limits: { fileSize: 100 * 1024 * 1024 } });
+// База данных
+function readDB() {
+  try {
+    if (!fs.existsSync(DB_FILE)) {
+      fs.writeFileSync(DB_FILE, JSON.stringify({ users: [], projects: [] }));
+      return { users: [], projects: [] };
+    }
+    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+  } catch (e) {
+    console.error('DB error:', e);
+    return { users: [], projects: [] };
+  }
+}
 
-// === Middleware ===
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+function writeDB(data) {
+  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+}
+
+// Middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || '3d-review-hub-2025',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+}));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use('/models', express.static('uploads'));
-app.use('/portfolio-media', express.static('uploads'));
 
 function requireAuth(req, res, next) {
   if (req.session.userId) next();
@@ -86,15 +75,16 @@ function requireAuth(req, res, next) {
 }
 
 // === Роуты ===
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 app.get('/view/:projectId', (req, res) => res.sendFile(path.join(__dirname, 'public', 'viewer.html')));
-app.get('/portfolio/:userId', (req, res) => res.sendFile(path.join(__dirname, 'public', 'portfolio.html')));
-app.get('/portfolio/:userId/project/:itemId', (req, res) => res.sendFile(path.join(__dirname, 'public', 'portfolio-project.html')));
 
-// === Аутентификация ===
+// Аутентификация
 app.post('/register', async (req, res) => {
   const { email, password, name } = req.body;
   if (!email || !password || !name) return res.status(400).json({ error: 'Все поля обязательны' });
@@ -129,17 +119,15 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true, redirect: '/' }));
 });
 
-// === Проекты ===
+// Проекты
 app.get('/api/projects', requireAuth, (req, res) => {
   const db = readDB();
   res.json(db.projects.filter(p => p.userId === req.session.userId));
 });
 
-app.post('/api/projects', requireAuth, (req, res) => {
-  uploadProject.single('model')(req, res, async (err) => {
-    if (err) return res.status(400).json({ error: err.message });
-
-    if (!req.file) return res.status(400).json({ error: 'Модель обязательна' });
+app.post('/api/projects', requireAuth, upload.single('model'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Файл модели обязателен' });
     const { name, description, expiresIn = '24', password = '', mode = 'individual' } = req.body;
     if (!name) return res.status(400).json({ error: 'Название обязательно' });
 
@@ -175,7 +163,10 @@ app.post('/api/projects', requireAuth, (req, res) => {
     writeDB(db);
     cleanupExpiredProjects();
     res.json({ success: true, project: { ...project, shareUrl: fullUrl } });
-  });
+  } catch (error) {
+    console.error('Ошибка:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 app.post('/api/projects/:projectId/archive', requireAuth, (req, res) => {
@@ -208,62 +199,27 @@ app.get('/api/view/:projectId', (req, res) => {
   });
 });
 
-// === ПОРТФОЛИО ===
-app.get('/api/portfolio-items', requireAuth, (req, res) => {
-  const db = readDB();
-  const items = db.portfolioItems?.filter(i => i.userId === req.session.userId) || [];
-  const sections = [...new Set(items.map(i => i.section || 'Основное'))].sort();
-  res.json({ items, sections });
-});
+// WebSocket
+const activeRooms = new Map();
+io.on('connection', (socket) => {
+  socket.on('join-room', (projectId) => {
+    socket.join(projectId);
+    if (!activeRooms.has(projectId)) activeRooms.set(projectId, new Set());
+    activeRooms.get(projectId).add(socket.id);
+    socket.to(projectId).emit('user-joined', { userId: socket.id });
+  });
 
-app.post('/api/portfolio-items', requireAuth, (req, res) => {
-  uploadPortfolio.fields([
-    { name: 'preview', maxCount: 1 },
-    { name: 'model', maxCount: 1 },
-    { name: 'video', maxCount: 1 }
-  ])(req, res, async (err) => {
-    if (err) return res.status(400).json({ error: err.message });
-
-    const { title, description, section } = req.body;
-    if (!title) return res.status(400).json({ error: 'Название обязательно' });
-
-    const newItem = {
-      id: uuidv4(),
-      userId: req.session.userId,
-      title,
-      description: description || '',
-      section: section || 'Основное',
-      previewFile: req.files?.preview?.[0]?.filename || null,
-      modelFile: req.files?.model?.[0]?.filename || null,
-      videoFile: req.files?.video?.[0]?.filename || null,
-      createdAt: new Date().toISOString()
-    };
-
-    const db = readDB();
-    if (!db.portfolioItems) db.portfolioItems = [];
-    db.portfolioItems.push(newItem);
-    writeDB(db);
-    res.json({ success: true, item: newItem });
+  socket.on('disconnect', () => {
+    for (const [roomId, users] of activeRooms.entries()) {
+      if (users.delete(socket.id)) {
+        socket.to(roomId).emit('user-left', { userId: socket.id });
+        if (users.size === 0) activeRooms.delete(roomId);
+      }
+    }
   });
 });
 
-app.delete('/api/portfolio-items/:id', requireAuth, (req, res) => {
-  const db = readDB();
-  db.portfolioItems = db.portfolioItems?.filter(i => !(i.id === req.params.id && i.userId === req.session.userId)) || [];
-  writeDB(db);
-  res.json({ success: true });
-});
-
-app.get('/api/public-portfolio/:userId', (req, res) => {
-  const db = readDB();
-  const user = db.users.find(u => u.id === req.params.userId);
-  if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-  const items = (db.portfolioItems || []).filter(i => i.userId === req.params.userId);
-  const sections = [...new Set(items.map(i => i.section || 'Основное'))].sort();
-  res.json({ user: { id: user.id, name: user.name }, items, sections });
-});
-
-// === Вспомогательные ===
+// Вспомогательные
 function cleanupExpiredProjects() {
   const db = readDB();
   let changed = false;
@@ -277,7 +233,7 @@ function cleanupExpiredProjects() {
 }
 setInterval(cleanupExpiredProjects, 6 * 3600 * 1000);
 
-// === Запуск ===
+// Запуск
 server.listen(PORT, () => {
   console.log(`✅ 3D Review Hub запущен на порту ${PORT}`);
 });
