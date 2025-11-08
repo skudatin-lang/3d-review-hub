@@ -1,4 +1,4 @@
-// server.js — для Render + PostgreSQL + Backblaze B2
+// server.js — версия для Render + PostgreSQL + Backblaze B2
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -8,6 +8,7 @@ const session = require('express-session');
 const { Pool } = require('pg');
 const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+require('dotenv').config();
 
 const app = express();
 const server = require('http').createServer(app);
