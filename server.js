@@ -1,4 +1,4 @@
-// server.js — полная версия с портфолио
+// server.js
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -20,7 +20,6 @@ const UPLOADS_PROJECTS = 'uploads/projects';
 const UPLOADS_PORTFOLIO = 'uploads/portfolio';
 const DB_FILE = 'database.json';
 
-// Создание папок
 [UPLOADS_PROJECTS, UPLOADS_PORTFOLIO].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
@@ -34,7 +33,7 @@ function readDB() {
     }
     return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
   } catch (e) {
-    console.error('DB read error:', e);
+    console.error('DB error:', e);
     return { users: [], projects: [], portfolioItems: [] };
   }
 }
@@ -45,13 +44,13 @@ function writeDB(data) {
 
 // === Сессии ===
 app.use(session({
-  secret: process.env.SESSION_SECRET || '3d-review-hub-secret-change-in-prod',
+  secret: process.env.SESSION_SECRET || '3d-review-hub-secret-2025',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
 }));
 
-// === Multer ===
+// === Multer Storage ===
 const projectStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_PROJECTS),
   filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`)
@@ -72,16 +71,14 @@ const uploadProject = multer({
   limits: { fileSize: 100 * 1024 * 1024 }
 });
 
-const uploadPortfolio = multer({
-  storage: portfolioStorage,
-  limits: { fileSize: 100 * 1024 * 1024 }
-});
+const uploadPortfolio = multer({ storage: portfolioStorage, limits: { fileSize: 100 * 1024 * 1024 } });
 
 // === Middleware ===
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 app.use('/models', express.static('uploads'));
+app.use('/portfolio-media', express.static('uploads'));
 
 function requireAuth(req, res, next) {
   if (req.session.userId) next();
@@ -89,10 +86,7 @@ function requireAuth(req, res, next) {
 }
 
 // === Роуты ===
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
@@ -135,49 +129,53 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true, redirect: '/' }));
 });
 
-// === Проекты (для клиентов) ===
+// === Проекты ===
 app.get('/api/projects', requireAuth, (req, res) => {
   const db = readDB();
   res.json(db.projects.filter(p => p.userId === req.session.userId));
 });
 
-app.post('/api/projects', requireAuth, uploadProject.single('model'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Модель обязательна' });
-  const { name, description, expiresIn = '24', password = '', mode = 'individual' } = req.body;
-  if (!name) return res.status(400).json({ error: 'Название обязательно' });
+app.post('/api/projects', requireAuth, (req, res) => {
+  uploadProject.single('model')(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
 
-  const db = readDB();
-  const user = db.users.find(u => u.id === req.session.userId);
-  const active = db.projects.filter(p => p.userId === user.id && p.status === 'active');
-  if (user.plan === 'free' && active.length >= 3) {
-    return res.status(400).json({ error: 'Лимит: 3 активных проекта' });
-  }
+    if (!req.file) return res.status(400).json({ error: 'Модель обязательна' });
+    const { name, description, expiresIn = '24', password = '', mode = 'individual' } = req.body;
+    if (!name) return res.status(400).json({ error: 'Название обязательно' });
 
-  const projectId = uuidv4();
-  const expiresAt = new Date(Date.now() + parseInt(expiresIn) * 3600000);
-  const fullUrl = `${req.protocol}://${req.get('host')}/view/${projectId}`;
+    const db = readDB();
+    const user = db.users.find(u => u.id === req.session.userId);
+    const active = db.projects.filter(p => p.userId === user.id && p.status === 'active');
+    if (user.plan === 'free' && active.length >= 3) {
+      return res.status(400).json({ error: 'Лимит: 3 активных проекта' });
+    }
 
-  const project = {
-    id: projectId,
-    userId: user.id,
-    userName: user.name,
-    name,
-    description: description || '',
-    modelFile: req.file.filename,
-    modelOriginalName: req.file.originalname,
-    shareUrl: `/view/${projectId}`,
-    fullShareUrl: fullUrl,
-    password,
-    mode,
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    expiresAt: expiresAt.toISOString()
-  };
+    const projectId = uuidv4();
+    const expiresAt = new Date(Date.now() + parseInt(expiresIn) * 3600000);
+    const fullUrl = `${req.protocol}://${req.get('host')}/view/${projectId}`;
 
-  db.projects.push(project);
-  writeDB(db);
-  cleanupExpiredProjects();
-  res.json({ success: true, project: { ...project, shareUrl: fullUrl } });
+    const project = {
+      id: projectId,
+      userId: user.id,
+      userName: user.name,
+      name,
+      description: description || '',
+      modelFile: req.file.filename,
+      modelOriginalName: req.file.originalname,
+      shareUrl: `/view/${projectId}`,
+      fullShareUrl: fullUrl,
+      password,
+      mode,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      expiresAt: expiresAt.toISOString()
+    };
+
+    db.projects.push(project);
+    writeDB(db);
+    cleanupExpiredProjects();
+    res.json({ success: true, project: { ...project, shareUrl: fullUrl } });
+  });
 });
 
 app.post('/api/projects/:projectId/archive', requireAuth, (req, res) => {
@@ -223,8 +221,8 @@ app.post('/api/portfolio-items', requireAuth, (req, res) => {
     { name: 'preview', maxCount: 1 },
     { name: 'model', maxCount: 1 },
     { name: 'video', maxCount: 1 }
-  ])(req, res, async () => {
-    if (req multerError) return res.status(400).json({ error: req.multerError.message });
+  ])(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
 
     const { title, description, section } = req.body;
     if (!title) return res.status(400).json({ error: 'Название обязательно' });
@@ -251,9 +249,7 @@ app.post('/api/portfolio-items', requireAuth, (req, res) => {
 
 app.delete('/api/portfolio-items/:id', requireAuth, (req, res) => {
   const db = readDB();
-  db.portfolioItems = db.portfolioItems?.filter(i => 
-    !(i.id === req.params.id && i.userId === req.session.userId)
-  ) || [];
+  db.portfolioItems = db.portfolioItems?.filter(i => !(i.id === req.params.id && i.userId === req.session.userId)) || [];
   writeDB(db);
   res.json({ success: true });
 });
