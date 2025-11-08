@@ -1,0 +1,57 @@
+<!-- public/portfolio-project.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Проект — Портфолио</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:Segoe UI; background:#f8f9fa; color:#333; padding:40px 20px; }
+    .container { max-width:900px; margin:0 auto; }
+    .back { margin-bottom:20px; }
+    .back a { color:#4361ee; text-decoration:none; }
+    h1 { font-size:2rem; color:#1a2a6c; margin-bottom:20px; }
+    .media { margin-bottom:30px; }
+    .media img, .media video, .media iframe { width:100%; border-radius:12px; }
+    .description { line-height:1.6; color:#555; }
+    .btn { display:inline-block; padding:10px 20px; background:#4361ee; color:white; text-decoration:none; border-radius:8px; margin-top:20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="back"><a id="backLink" href="">← К портфолио</a></div>
+    <h1 id="title">Загрузка...</h1>
+    <div class="media" id="mediaContainer"></div>
+    <div class="description" id="description"></div>
+    <a id="viewerLink" class="btn" style="display:none;">Открыть в 3D-просмотрщике</a>
+  </div>
+  <script>
+    const urlParts = location.pathname.split('/');
+    const userId = urlParts[2];
+    const itemId = urlParts[4];
+    document.getElementById('backLink').href = `/portfolio/${userId}`;
+
+    fetch(`/api/public-portfolio/${userId}`)
+      .then(r => r.json())
+      .then(data => {
+        const item = data.items.find(i => i.id === itemId);
+        if (!item) return;
+        document.getElementById('title').textContent = item.title;
+        document.getElementById('description').textContent = item.description;
+
+        let html = '';
+        if (item.videoFile) {
+          html += `<video controls src="/portfolio-media/${item.videoFile}"></video>`;
+        } else if (item.previewFile) {
+          html += `<img src="/portfolio-media/${item.previewFile}" alt="Превью">`;
+        }
+        if (item.modelFile) {
+          document.getElementById('viewerLink').href = `/view/portfolio/${itemId}`;
+          document.getElementById('viewerLink').style.display = 'inline-block';
+        }
+        document.getElementById('mediaContainer').innerHTML = html;
+      });
+  </script>
+</body>
+</html>

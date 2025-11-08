@@ -16,7 +16,8 @@
         <span id="userGreeting">Добро пожаловать!</span>
       </div>
       <div class="header-actions">
-        <button id="newProjectBtn" class="btn btn-primary">+ Новый проект</button>
+        <button id="newProjectBtn" class="btn btn-primary">+ Проект</button>
+        <button id="newPortfolioItemBtn" class="btn btn-outline">+ В портфолио</button>
         <button id="logoutBtn" class="btn btn-outline">Выйти</button>
       </div>
     </header>
@@ -25,8 +26,9 @@
       <!-- Боковая панель -->
       <aside class="sidebar">
         <nav class="sidebar-nav">
-          <a href="#" class="nav-item active" data-tab="projects">📁 Мои проекты</a>
+          <a href="#" class="nav-item active" data-tab="projects">📁 Проекты</a>
           <a href="#" class="nav-item" data-tab="archive">🗄️ Архив</a>
+          <a href="#" class="nav-item" data-tab="portfolio">🎨 Портфолио</a>
           <a href="#" class="nav-item" data-tab="settings">⚙️ Настройки</a>
         </nav>
         <div class="user-stats">
@@ -50,13 +52,11 @@
             <h2>Активные проекты</h2>
             <p>Проекты, доступные для просмотра клиентами</p>
           </div>
-          <div id="projectsList" class="projects-grid">
-            <!-- Проекты подгружаются сюда -->
-          </div>
+          <div id="projectsList" class="projects-grid"></div>
           <div id="emptyState" class="empty-state">
             <div class="empty-icon">📁</div>
             <h3>Пока нет проектов</h3>
-            <p>Создайте ваш первый проект, чтобы поделиться 3D-моделью с клиентом</p>
+            <p>Создайте ваш первый проект</p>
             <button id="createFirstProject" class="btn btn-primary">Создать проект</button>
           </div>
         </div>
@@ -67,8 +67,24 @@
             <h2>Архив проектов</h2>
             <p>Завершённые и просроченные проекты</p>
           </div>
-          <div id="archiveList" class="projects-grid">
-            <!-- Архивные проекты -->
+          <div id="archiveList" class="projects-grid"></div>
+        </div>
+
+        <!-- Вкладка портфолио -->
+        <div id="portfolio-tab" class="tab-content">
+          <div class="content-header">
+            <h2>Моё портфолио</h2>
+            <p>Публичные работы для привлечения клиентов</p>
+          </div>
+          <div class="portfolio-actions">
+            <button id="addPortfolioItem" class="btn btn-primary">+ Добавить работу</button>
+            <a id="viewPublicPortfolio" href="" target="_blank" class="btn btn-outline" style="display:none;">Открыть публичное портфолио</a>
+          </div>
+          <div id="portfolioSections"></div>
+          <div id="portfolioEmpty" class="empty-state" style="display:none;">
+            <div class="empty-icon">🎨</div>
+            <h3>Портфолио пусто</h3>
+            <p>Добавьте первую работу, чтобы показать свои навыки</p>
           </div>
         </div>
 
@@ -93,130 +109,195 @@
     </main>
   </div>
 
-  <!-- Модальное окно создания проекта -->
+  <!-- Модальное окно: Новый проект -->
   <div id="projectModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Создать новый проект</h3>
+        <h3>Новый проект</h3>
         <button class="modal-close">&times;</button>
       </div>
       <form id="projectForm" class="modal-form" enctype="multipart/form-data">
         <div class="form-group">
-          <label for="projectName">Название проекта *</label>
-          <input type="text" id="projectName" name="name" required placeholder="Например: Дом для клиента Ивана" />
+          <label>Название *</label>
+          <input type="text" name="name" required />
         </div>
         <div class="form-group">
-          <label for="projectDescription">Описание</label>
-          <textarea id="projectDescription" name="description" placeholder="Описание проекта для вас"></textarea>
+          <label>Описание</label>
+          <textarea name="description"></textarea>
         </div>
         <div class="form-group">
-          <label for="projectModel">3D Модель *</label>
+          <label>3D Модель *</label>
           <div class="file-upload">
-            <input type="file" id="projectModel" name="model" accept=".stl,.glb,.obj" required />
-            <label for="projectModel" class="file-upload-label">
-              <span class="file-icon">📁</span>
-              <span class="file-text">Выберите файл модели</span>
-            </label>
+            <input type="file" name="model" accept=".stl,.glb,.obj" required />
+            <label class="file-upload-label">📁 Выберите файл</label>
           </div>
           <div class="file-info" id="fileInfo"></div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="projectExpires">Срок действия (часы)</label>
-            <select id="projectExpires" name="expiresIn">
-              <option value="24">24 часа</option>
+            <label>Срок (часы)</label>
+            <select name="expiresIn">
+              <option value="24">24 ч</option>
               <option value="72">3 дня</option>
               <option value="168">7 дней</option>
               <option value="720">30 дней</option>
             </select>
           </div>
           <div class="form-group">
-            <label for="projectMode">Режим работы</label>
-            <select id="projectMode" name="mode">
+            <label>Режим</label>
+            <select name="mode">
               <option value="individual">Индивидуальный</option>
               <option value="collaborative">Совместный</option>
             </select>
           </div>
         </div>
         <div class="form-group">
-          <label for="projectPassword">Пароль (опционально)</label>
-          <input type="password" id="projectPassword" name="password" placeholder="Оставьте пустым для свободного доступа" />
+          <label>Пароль (опционально)</label>
+          <input type="password" name="password" />
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-outline modal-cancel">Отмена</button>
-          <button type="submit" class="btn btn-primary">Создать проект</button>
+          <button type="submit" class="btn btn-primary">Создать</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Модальное окно: Новое портфолио -->
+  <div id="portfolioModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Новая работа в портфолио</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="portfolioForm" class="modal-form" enctype="multipart/form-data">
+        <div class="form-group">
+          <label>Название *</label>
+          <input type="text" name="title" required />
+        </div>
+        <div class="form-group">
+          <label>Раздел *</label>
+          <input type="text" id="portfolioSectionInput" placeholder="Например: Архитектура, Персонажи..." required />
+          <select id="portfolioSectionSelect" style="display:none;"></select>
+        </div>
+        <div class="form-group">
+          <label>Описание</label>
+          <textarea name="description" placeholder="Расскажите о проекте"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Фото превью (опционально)</label>
+          <div class="file-upload">
+            <input type="file" name="preview" accept="image/*" />
+            <label class="file-upload-label">🖼️ Выберите изображение</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Видео (опционально)</label>
+          <div class="file-upload">
+            <input type="file" name="video" accept="video/*" />
+            <label class="file-upload-label">🎥 Выберите видео</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>3D Модель GLB (опционально)</label>
+          <div class="file-upload">
+            <input type="file" name="model" accept=".glb" />
+            <label class="file-upload-label">🔷 Выберите GLB</label>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline modal-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Добавить в портфолио</button>
         </div>
       </form>
     </div>
   </div>
 
   <script>
-    // === ВСЁ ОСТАЛЬНОЕ ОСТАЁТСЯ БЕЗ ИЗМЕНЕНИЙ ===
-    // (ваш текущий JS-код из dashboard.html)
+    // === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
+    let userId = null;
+    let sections = ['Основное'];
+
+    // === ИНИЦИАЛИЗАЦИЯ ===
     document.addEventListener('DOMContentLoaded', async () => {
+      await loadUserData();
       await loadProjects();
+      await loadPortfolio();
       setupEventListeners();
     });
 
+    async function loadUserData() {
+      try {
+        const res = await fetch('/api/projects');
+        const projects = await res.json();
+        if (projects.length > 0) {
+          userId = projects[0].userId;
+          document.getElementById('viewPublicPortfolio').href = `/portfolio/${userId}`;
+          document.getElementById('viewPublicPortfolio').style.display = 'inline-block';
+        }
+      } catch (e) {
+        console.error('Не удалось загрузить данные пользователя');
+      }
+    }
+
+    // === ПРОЕКТЫ ===
     async function loadProjects() {
       try {
-        const response = await fetch('/api/projects');
-        const projects = await response.json();
+        const res = await fetch('/api/projects');
+        const projects = await res.json();
         displayProjects(projects);
         updateStats(projects);
-        // Загрузка имени пользователя
-        const db = await fetch('/api/user').then(r => r.json()).catch(() => ({ name: 'Пользователь' }));
-        document.getElementById('userGreeting').textContent = `Привет, ${db.name || 'Пользователь'}!`;
-      } catch (error) {
-        console.error('Ошибка загрузки проектов:', error);
+      } catch (e) {
+        console.error('Ошибка загрузки проектов:', e);
       }
     }
 
     function displayProjects(projects) {
-      const projectsList = document.getElementById('projectsList');
-      const archiveList = document.getElementById('archiveList');
-      const emptyState = document.getElementById('emptyState');
-      const activeProjects = projects.filter(p => p.status === 'active');
-      const archivedProjects = projects.filter(p => p.status !== 'active');
+      const active = projects.filter(p => p.status === 'active');
+      const archived = projects.filter(p => p.status !== 'active');
 
-      if (activeProjects.length === 0) {
-        projectsList.innerHTML = '';
-        emptyState.style.display = 'block';
+      const list = document.getElementById('projectsList');
+      const archiveList = document.getElementById('archiveList');
+      const empty = document.getElementById('emptyState');
+
+      if (active.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
       } else {
-        emptyState.style.display = 'none';
-        projectsList.innerHTML = activeProjects.map(project => `
-          <div class="project-card" data-project-id="${project.id}">
+        empty.style.display = 'none';
+        list.innerHTML = active.map(p => `
+          <div class="project-card" data-id="${p.id}">
             <div class="project-header">
-              <h3>${project.name}</h3>
-              <span class="project-status ${project.status}">${getStatusText(project.status)}</span>
+              <h3>${p.name}</h3>
+              <span class="project-status ${p.status}">${getStatusText(p.status)}</span>
             </div>
             <div class="project-info">
-              <p>${project.description || 'Без описания'}</p>
+              <p>${p.description || 'Без описания'}</p>
               <div class="project-meta">
-                <span>Создан: ${new Date(project.createdAt).toLocaleDateString()}</span>
-                <span>Истекает: ${new Date(project.expiresAt).toLocaleDateString()}</span>
+                <span>Создан: ${new Date(p.createdAt).toLocaleDateString()}</span>
+                <span>Истекает: ${new Date(p.expiresAt).toLocaleDateString()}</span>
               </div>
             </div>
             <div class="project-actions">
-              <button class="btn btn-outline btn-small copy-link" data-url="${project.fullShareUrl}">Копировать ссылку</button>
-              <button class="btn btn-outline btn-small open-viewer" data-project-id="${project.id}">Открыть</button>
-              <button class="btn btn-outline btn-small archive-project" data-project-id="${project.id}">Архивировать</button>
+              <button class="btn btn-outline btn-small copy-link" data-url="${p.fullShareUrl}">Ссылка</button>
+              <button class="btn btn-outline btn-small open-viewer" data-id="${p.id}">Открыть</button>
+              <button class="btn btn-outline btn-small archive-project" data-id="${p.id}">Архив</button>
             </div>
           </div>
         `).join('');
       }
 
-      archiveList.innerHTML = archivedProjects.map(project => `
-        <div class="project-card archived" data-project-id="${project.id}">
+      archiveList.innerHTML = archived.map(p => `
+        <div class="project-card archived">
           <div class="project-header">
-            <h3>${project.name}</h3>
-            <span class="project-status ${project.status}">${getStatusText(project.status)}</span>
+            <h3>${p.name}</h3>
+            <span class="project-status ${p.status}">${getStatusText(p.status)}</span>
           </div>
           <div class="project-info">
-            <p>${project.description || 'Без описания'}</p>
+            <p>${p.description || 'Без описания'}</p>
             <div class="project-meta">
-              <span>Создан: ${new Date(project.createdAt).toLocaleDateString()}</span>
-              <span>Завершён: ${new Date(project.expiresAt).toLocaleDateString()}</span>
+              <span>Создан: ${new Date(p.createdAt).toLocaleDateString()}</span>
+              <span>Завершён: ${new Date(p.expiresAt).toLocaleDateString()}</span>
             </div>
           </div>
         </div>
@@ -224,21 +305,74 @@
     }
 
     function getStatusText(status) {
-      const map = { active: 'Активен', archived: 'В архиве', expired: 'Истёк' };
+      const map = { active: 'Активен', archived: 'Архив', expired: 'Истёк' };
       return map[status] || status;
     }
 
     function updateStats(projects) {
-      const active = projects.filter(p => p.status === 'active').length;
-      document.getElementById('activeProjectsCount').textContent = active;
-      document.getElementById('userPlan').textContent = 'Free';
-      document.getElementById('currentPlan').textContent = 'Free';
+      const count = projects.filter(p => p.status === 'active').length;
+      document.getElementById('activeProjectsCount').textContent = count;
     }
 
+    // === ПОРТФОЛИО ===
+    async function loadPortfolio() {
+      try {
+        const res = await fetch('/api/portfolio-items');
+        const { items, sections: loadedSections } = await res.json();
+        sections = loadedSections.length ? loadedSections : ['Основное'];
+        displayPortfolio(items);
+      } catch (e) {
+        console.error('Ошибка загрузки портфолио:', e);
+      }
+    }
+
+    function displayPortfolio(items) {
+      const container = document.getElementById('portfolioSections');
+      const empty = document.getElementById('portfolioEmpty');
+
+      if (items.length === 0) {
+        container.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      let html = '';
+      sections.forEach(section => {
+        const sectionItems = items.filter(i => (i.section || 'Основное') === section);
+        if (sectionItems.length === 0) return;
+
+        html += `<h3 style="margin:20px 0 10px;">${section}</h3>`;
+        html += `<div class="projects-grid">`;
+        html += sectionItems.map(i => `
+          <div class="project-card" data-id="${i.id}">
+            <div class="project-header">
+              <h3>${i.title}</h3>
+              <button class="btn btn-outline btn-small delete-portfolio" data-id="${i.id}">Удалить</button>
+            </div>
+            <div class="project-info">
+              <p>${i.description || 'Без описания'}</p>
+              <div class="project-meta">
+                <span>Добавлено: ${new Date(i.createdAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+            <div class="project-actions">
+              <a href="/portfolio/${userId}/project/${i.id}" target="_blank" class="btn btn-outline btn-small">Открыть</a>
+              <button class="btn btn-outline btn-small copy-portfolio-link" 
+                      data-url="/portfolio/${userId}/project/${i.id}">Ссылка</button>
+            </div>
+          </div>
+        `).join('');
+        html += `</div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    // === СОБЫТИЯ ===
     function setupEventListeners() {
       // Вкладки
       document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', (e) => {
+        item.addEventListener('click', e => {
           e.preventDefault();
           document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
           document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -247,39 +381,38 @@
         });
       });
 
-      // Модальное окно
-      const modal = document.getElementById('projectModal');
-      ['newProjectBtn', 'createFirstProject'].forEach(id => {
-        document.getElementById(id).addEventListener('click', () => modal.style.display = 'flex');
+      // Модальные окна
+      const modals = ['projectModal', 'portfolioModal'];
+      modals.forEach(id => {
+        const el = document.getElementById(id);
+        const openBtn = document.querySelector(`[data-modal="${id}"], #${id.replace('Modal','Btn')}, #addPortfolioItem`);
+        if (openBtn) openBtn.addEventListener('click', () => el.style.display = 'flex');
+        el.querySelector('.modal-close, .modal-cancel')?.addEventListener('click', () => el.style.display = 'none');
+        el.addEventListener('click', e => { if (e.target === el) el.style.display = 'none'; });
       });
-      ['.modal-close', '.modal-cancel'].forEach(sel => {
-        document.querySelector(sel).addEventListener('click', () => modal.style.display = 'none');
-      });
-      modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
 
-      // Файл
-      document.getElementById('projectModel').addEventListener('change', function(e) {
+      // Файл инфо
+      document.querySelector('[name="model"]')?.addEventListener('change', e => {
         const f = e.target.files[0];
         const info = document.getElementById('fileInfo');
-        info.innerHTML = f ? `<strong>${f.name}</strong> (${(f.size / 1048576).toFixed(2)} MB)` : '';
+        info.innerHTML = f ? `<strong>${f.name}</strong> (${(f.size/1048576).toFixed(2)} MB)` : '';
       });
 
-      // Форма
-      document.getElementById('projectForm').addEventListener('submit', async (e) => {
+      // Создание проекта
+      document.getElementById('projectForm')?.addEventListener('submit', async e => {
         e.preventDefault();
-        const form = e.target;
-        const btn = form.querySelector('button[type="submit"]');
+        const btn = e.target.querySelector('button[type="submit"]');
         btn.disabled = true;
         btn.textContent = 'Создание...';
         try {
-          const res = await fetch('/api/projects', { method: 'POST', body: new FormData(form) });
+          const res = await fetch('/api/projects', { method: 'POST', body: new FormData(e.target) });
           const r = await res.json();
           if (r.success) {
-            modal.style.display = 'none';
-            form.reset();
+            document.getElementById('projectModal').style.display = 'none';
+            e.target.reset();
             document.getElementById('fileInfo').innerHTML = '';
             await loadProjects();
-            alert(`✅ Проект создан!\n\nСсылка для клиента:\n${r.project.shareUrl}`);
+            alert(`✅ Проект создан!\nСсылка:\n${r.project.shareUrl}`);
           } else {
             alert('❌ ' + r.error);
           }
@@ -287,22 +420,57 @@
           alert('Ошибка сети: ' + err.message);
         } finally {
           btn.disabled = false;
-          btn.textContent = 'Создать проект';
+          btn.textContent = 'Создать';
         }
       });
 
-      // Делегирование событий
-      document.addEventListener('click', async (e) => {
-        if (e.target.classList.contains('copy-link')) {
-          await navigator.clipboard.writeText(e.target.dataset.url);
+      // Создание портфолио
+      document.getElementById('portfolioForm')?.addEventListener('submit', async e => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.textContent = 'Добавление...';
+        try {
+          const res = await fetch('/api/portfolio-items', { method: 'POST', body: new FormData(e.target) });
+          const r = await res.json();
+          if (r.success) {
+            document.getElementById('portfolioModal').style.display = 'none';
+            e.target.reset();
+            await loadPortfolio();
+            alert('✅ Работа добавлена в портфолио!');
+          } else {
+            alert('❌ ' + r.error);
+          }
+        } catch (err) {
+          alert('Ошибка сети: ' + err.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Добавить в портфолио';
+        }
+      });
+
+      // Удаление из портфолио
+      document.addEventListener('click', async e => {
+        if (e.target.classList.contains('delete-portfolio')) {
+          if (confirm('Удалить из портфолио?')) {
+            const id = e.target.dataset.id;
+            await fetch(`/api/portfolio-items/${id}`, { method: 'DELETE' });
+            await loadPortfolio();
+          }
+        }
+      });
+
+      // Делегирование
+      document.addEventListener('click', e => {
+        if (e.target.classList.contains('copy-link') || e.target.classList.contains('copy-portfolio-link')) {
+          navigator.clipboard.writeText(e.target.dataset.url);
           alert('🔗 Ссылка скопирована!');
         } else if (e.target.classList.contains('open-viewer')) {
-          window.open(`/view/${e.target.dataset.projectId}`, '_blank');
+          window.open(`/view/${e.target.dataset.id}`, '_blank');
         } else if (e.target.classList.contains('archive-project')) {
-          if (confirm('Архивировать проект? Клиенты не смогут его просматривать.')) {
-            const id = e.target.dataset.projectId;
-            await fetch(`/api/projects/${id}/archive`, { method: 'POST' });
-            await loadProjects();
+          if (confirm('Архивировать проект?')) {
+            fetch(`/api/projects/${e.target.dataset.id}/archive`, { method: 'POST' });
+            loadProjects();
           }
         }
       });
