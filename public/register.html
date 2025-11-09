@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Регистрация</title>
+  <title>Регистрация — 3D Review Hub</title>
   <link rel="stylesheet" href="styles/auth.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
         <h1>Создать аккаунт</h1>
         <p>Начните работу с 3D Review Hub</p>
       </div>
-      <form id="registerForm">
+      <form id="registerForm" class="auth-form">
         <div class="form-group">
           <label for="name">Ваше имя</label>
           <input type="text" id="name" name="name" required>
@@ -27,29 +27,42 @@
           <label for="password">Пароль</label>
           <input type="password" id="password" name="password" required minlength="6">
         </div>
-        <button type="submit">Создать аккаунт</button>
+        <button type="submit" class="btn btn-primary btn-full">Создать аккаунт</button>
       </form>
-      <p style="margin-top: 20px;">
-        Уже есть аккаунт? <a href="/login">Войдите</a>
-      </p>
-      <div id="message" class="message" style="display:none;"></div>
+      <div class="auth-footer">
+        <p>Уже есть аккаунт? <a href="/login">Войдите</a></p>
+      </div>
+      <div id="message" class="message"></div>
     </div>
   </div>
   <script>
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const data = Object.fromEntries(new FormData(e.target));
-      const res = await fetch('/register', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-      });
-      const result = await res.json();
-      if (result.success) {
-        window.location.href = result.redirect;
-      } else {
-        document.getElementById('message').style.display = 'block';
-        document.getElementById('message').textContent = result.error;
+      const form = e.target;
+      const data = new URLSearchParams(new FormData(form));
+      const submitBtn = form.querySelector('button');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Создание...';
+
+      try {
+        const response = await fetch('/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: data
+        });
+        const result = await response.json();
+        if (result.success) {
+          window.location.href = result.redirect;
+        } else {
+          document.getElementById('message').textContent = result.error;
+          document.getElementById('message').className = 'message error';
+        }
+      } catch (err) {
+        document.getElementById('message').textContent = 'Ошибка сети';
+        document.getElementById('message').className = 'message error';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Создать аккаунт';
       }
     });
   </script>
