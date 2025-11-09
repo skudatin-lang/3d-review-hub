@@ -96,7 +96,7 @@
         </main>
     </div>
 
-    <!-- Модалка: новый проект -->
+    <!-- Модальное окно: Новый проект -->
     <div id="projectModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -153,7 +153,7 @@
         </div>
     </div>
 
-    <!-- Модалка: портфолио -->
+    <!-- Модальное окно: Портфолио -->
     <div id="portfolioModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -172,7 +172,7 @@
                 <div class="form-group">
                     <label for="portfolioFile">Файл (фото, видео, STL) *</label>
                     <div class="file-upload">
-                        <input type="file" id="portfolioFile" name="file" accept=".jpg,.jpeg,.png,.mp4,.webm,.stl" required>
+                        <input type="file" id="portfolioFile" name="file" accept="image/*,video/*,.stl" required>
                         <label for="portfolioFile" class="file-upload-label">
                             <span class="file-icon">📎</span>
                             <span class="file-text">Выберите файл</span>
@@ -269,7 +269,9 @@
                 empty.style.display = 'none';
                 grid.innerHTML = items.map(item => {
                     let preview = `<div>Файл: ${item.originalName}</div>`;
-                    if (item.fileName.endsWith('.jpg') || item.fileName.endsWith('.png')) {
+                    if (item.originalName.toLowerCase().endsWith('.jpg') || 
+                        item.originalName.toLowerCase().endsWith('.png') ||
+                        item.originalName.toLowerCase().endsWith('.jpeg')) {
                         preview = `<img src="/portfolio-files/${item.fileName}" style="width:100%; border-radius:8px;">`;
                     }
                     return `
@@ -305,26 +307,32 @@
                 });
             });
 
-            // Модалки: открытие/закрытие
-            function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-            function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-
-            document.getElementById('newProjectBtn').addEventListener('click', () => openModal('projectModal'));
-            document.getElementById('createFirstProject').addEventListener('click', () => openModal('projectModal'));
-            document.getElementById('addPortfolioBtn').addEventListener('click', () => openModal('portfolioModal'));
-            document.querySelectorAll('.modal-close, .modal-cancel').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    closeModal('projectModal');
-                    closeModal('portfolioModal');
-                });
-            });
-            document.querySelectorAll('.modal').forEach(modal => {
+            // Модалки
+            const modals = ['projectModal', 'portfolioModal'];
+            modals.forEach(id => {
+                const modal = document.getElementById(id);
+                if (!modal) return;
+                const closeBtn = modal.querySelector('.modal-close');
+                const cancelBtn = modal.querySelector('.modal-cancel');
+                if (closeBtn) closeBtn.addEventListener('click', () => modal.style.display = 'none');
+                if (cancelBtn) cancelBtn.addEventListener('click', () => modal.style.display = 'none');
                 modal.addEventListener('click', (e) => {
-                    if (e.target === modal) closeModal(modal.id);
+                    if (e.target === modal) modal.style.display = 'none';
                 });
             });
 
-            // Файлы
+            // Кнопки открытия
+            document.getElementById('newProjectBtn')?.addEventListener('click', () => {
+                document.getElementById('projectModal').style.display = 'flex';
+            });
+            document.getElementById('createFirstProject')?.addEventListener('click', () => {
+                document.getElementById('projectModal').style.display = 'flex';
+            });
+            document.getElementById('addPortfolioBtn')?.addEventListener('click', () => {
+                document.getElementById('portfolioModal').style.display = 'flex';
+            });
+
+            // Инфо о файлах
             document.getElementById('projectModel')?.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 document.getElementById('fileInfo').textContent = file ? `${file.name} (${(file.size/1024/1024).toFixed(1)} MB)` : '';
@@ -345,7 +353,7 @@
                     const res = await fetch('/api/projects', { method: 'POST', body: data });
                     const result = await res.json();
                     if (result.success) {
-                        closeModal('projectModal');
+                        document.getElementById('projectModal').style.display = 'none';
                         e.target.reset();
                         document.getElementById('fileInfo').textContent = '';
                         await loadProjects();
@@ -371,7 +379,7 @@
                     const res = await fetch('/api/portfolio', { method: 'POST', body: data });
                     const result = await res.json();
                     if (result.success) {
-                        closeModal('portfolioModal');
+                        document.getElementById('portfolioModal').style.display = 'none';
                         e.target.reset();
                         document.getElementById('portfolioFileInfo').textContent = '';
                         await loadPortfolio();
