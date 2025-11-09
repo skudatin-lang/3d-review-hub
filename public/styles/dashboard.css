@@ -15,7 +15,7 @@ body {
     flex-direction: column;
     min-height: 100vh;
 }
-/*  Шапка  */
+/* Шапка */
 .dashboard-header {
     background: white;
     padding: 20px 40px;
@@ -71,12 +71,12 @@ body {
     padding: 8px 16px;
     font-size: 12px;
 }
-/*  Основной контент  */
+/* Основной контент */
 .dashboard-main {
     display: flex;
     flex: 1;
 }
-/*  Боковая панель  */
+/* Боковая панель */
 .sidebar {
     width: 250px;
     background: white;
@@ -122,7 +122,7 @@ body {
     margin-bottom: 10px;
     font-size: 14px;
 }
-/*  Основной контент  */
+/* Основной контент */
 .content {
     flex: 1;
     padding: 40px;
@@ -144,7 +144,7 @@ body {
 .content-header p {
     color: #666;
 }
-/*  Сетка проектов  */
+/* Сетка проектов и портфолио */
 .projects-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -211,7 +211,7 @@ body {
     gap: 10px;
     flex-wrap: wrap;
 }
-/*  Состояние пустого списка  */
+/* Состояние пустого списка */
 .empty-state {
     text-align: center;
     padding: 60px 20px;
@@ -226,7 +226,7 @@ body {
     margin-bottom: 10px;
     color: #333;
 }
-/*  Модальное окно  */
+/* Модальное окно */
 .modal {
     display: none;
     position: fixed;
@@ -310,7 +310,7 @@ body {
     padding-top: 20px;
     border-top: 1px solid #e0e0e0;
 }
-/*  Настройки  */
+/* Настройки */
 .settings-content {
     max-width: 600px;
 }
@@ -333,7 +333,7 @@ body {
 .current-plan {
     color: #333;
 }
-/*  Адаптивность  */
+/* Адаптивность */
 @media (max-width: 768px) {
     .dashboard-main {
         flex-direction: column;
