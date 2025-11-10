@@ -1,0 +1,35 @@
+<!-- public/dashboard.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles/dashboard.css">
+</head>
+<body>
+  <div class="sidebar">
+    <a href="#" data-module="projects">📁 Проекты</a>
+    <a href="#" data-module="portfolio">🎨 Портфолио</a>
+  </div>
+  <div id="module-container"></div>
+
+  <script>
+    // Динамическая загрузка модуля
+    async function loadModule(moduleName) {
+      const response = await fetch(`/modules/${moduleName}/view.html`);
+      document.getElementById('module-container').innerHTML = await response.text();
+      // Инициализация JS модуля (если есть)
+      if (window[`init${moduleName}`]) window[`init${moduleName}`]();
+    }
+
+    document.querySelectorAll('[data-module]').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        loadModule(link.dataset.module);
+      });
+    });
+
+    // Загрузка первого модуля
+    loadModule('projects');
+  </script>
+</body>
+</html>
