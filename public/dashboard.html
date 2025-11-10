@@ -1,291 +1,318 @@
+<!-- dashboard.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Личный кабинет - 3D Review Hub</title>
-    <link rel="stylesheet" href="styles/dashboard.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Личный кабинет — 3D Review Hub</title>
+  <link rel="stylesheet" href="styles/dashboard.css" />
 </head>
 <body>
-    <div class="dashboard-container">
-        <header class="dashboard-header">
-            <div class="header-brand">
-                <h1>3D Review Hub</h1>
-                <span id="userGreeting">Добро пожаловать!</span>
-            </div>
-            <div class="header-actions">
-                <button id="newProjectBtn" class="btn btn-primary">+ Новый проект</button>
-                <button id="logoutBtn" class="btn btn-outline">Выйти</button>
-            </div>
-        </header>
-        <main class="dashboard-main">
-            <aside class="sidebar">
-                <nav class="sidebar-nav">
-                    <a href="#" class="nav-item active" data-tab="projects">📁 Мои проекты</a>
-                    <a href="#" class="nav-item" data-tab="archive">🗄️ Архив</a>
-                    <a href="#" class="nav-item" data-tab="settings">⚙️ Настройки</a>
-                </nav>
-                <div class="user-stats">
-                    <h4>Статистика</h4>
-                    <div class="stat">
-                        <span>Активных проектов:</span>
-                        <strong id="activeProjectsCount">0</strong>
-                    </div>
-                    <div class="stat">
-                        <span>Тариф:</span>
-                        <strong id="userPlan">Free</strong>
-                    </div>
-                </div>
-            </aside>
-            <section class="content">
-                <div id="projects-tab" class="tab-content active">
-                    <div class="content-header">
-                        <h2>Активные проекты</h2>
-                        <p>Проекты, доступные для просмотра клиентами</p>
-                    </div>
-                    <div id="projectsList" class="projects-grid"></div>
-                    <div id="emptyState" class="empty-state">
-                        <div class="empty-icon">📁</div>
-                        <h3>Пока нет проектов</h3>
-                        <p>Создайте ваш первый проект чтобы поделиться 3D моделью с клиентом</p>
-                        <button id="createFirstProject" class="btn btn-primary">Создать проект</button>
-                    </div>
-                </div>
-                <div id="archive-tab" class="tab-content">
-                    <div class="content-header">
-                        <h2>Архив проектов</h2>
-                        <p>Завершенные и просроченные проекты</p>
-                    </div>
-                    <div id="archiveList" class="projects-grid"></div>
-                </div>
-                <div id="settings-tab" class="tab-content">
-                    <div class="content-header">
-                        <h2>Настройки аккаунта</h2>
-                    </div>
-                    <div class="settings-content">
-                        <div class="setting-group">
-                            <h4>Тарифный план</h4>
-                            <div class="plan-info">
-                                <div class="current-plan">
-                                    <strong>Текущий план: <span id="currentPlan">Free</span></strong>
-                                </div>
-                                <button class="btn btn-primary">Обновить до Pro</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
+  <div class="dashboard-container">
+    <!-- Шапка -->
+    <header class="dashboard-header">
+      <div class="header-brand">
+        <h1>3D Review Hub</h1>
+        <span id="userGreeting">Добро пожаловать!</span>
+      </div>
+      <div class="header-actions">
+        <button id="newProjectBtn" class="btn btn-primary">+ Новый проект</button>
+        <button id="logoutBtn" class="btn btn-outline">Выйти</button>
+      </div>
+    </header>
 
-    <div id="projectModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Создать новый проект</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <form id="projectForm" class="modal-form" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label for="projectName">Название проекта *</label>
-                    <input type="text" id="projectName" name="name" required>
-                </div>
-                <div class="form-group">
-                    <label for="projectDescription">Описание</label>
-                    <textarea id="projectDescription" name="description"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="projectModel">3D Модель *</label>
-                    <div class="file-upload">
-                        <input type="file" id="projectModel" name="model" accept=".stl,.glb,.obj" required>
-                        <label for="projectModel" class="file-upload-label">
-                            <span class="file-icon">📁</span>
-                            <span class="file-text">Выберите файл модели</span>
-                        </label>
-                    </div>
-                    <div class="file-info" id="fileInfo"></div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="projectExpires">Срок действия (часы)</label>
-                        <select id="projectExpires" name="expiresIn">
-                            <option value="24">24 часа</option>
-                            <option value="72">3 дня</option>
-                            <option value="168">7 дней</option>
-                            <option value="720">30 дней</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="projectMode">Режим работы</label>
-                        <select id="projectMode" name="mode">
-                            <option value="individual">Индивидуальный</option>
-                            <option value="collaborative">Совместный</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="projectPassword">Пароль (опционально)</label>
-                    <input type="password" id="projectPassword" name="password">
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-outline modal-cancel">Отмена</button>
-                    <button type="submit" class="btn btn-primary">Создать проект</button>
-                </div>
-            </form>
+    <main class="dashboard-main">
+      <!-- Боковая панель -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <a href="#" class="nav-item active" data-tab="projects">📁 Мои проекты</a>
+          <a href="#" class="nav-item" data-tab="archive">🗄️ Архив</a>
+          <a href="#" class="nav-item" data-tab="settings">⚙️ Настройки</a>
+        </nav>
+        <div class="user-stats">
+          <h4>Статистика</h4>
+          <div class="stat">
+            <span>Активных проектов:</span>
+            <strong id="activeProjectsCount">0</strong>
+          </div>
+          <div class="stat">
+            <span>Тариф:</span>
+            <strong id="userPlan">Free</strong>
+          </div>
         </div>
-    </div>
+      </aside>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadProjects();
-            setupEventListeners();
-        });
+      <!-- Основной контент -->
+      <section class="content">
+        <!-- Вкладка проектов -->
+        <div id="projects-tab" class="tab-content active">
+          <div class="content-header">
+            <h2>Активные проекты</h2>
+            <p>Проекты, доступные для просмотра клиентами</p>
+          </div>
+          <div id="projectsList" class="projects-grid">
+            <!-- Проекты подгружаются сюда -->
+          </div>
+          <div id="emptyState" class="empty-state">
+            <div class="empty-icon">📁</div>
+            <h3>Пока нет проектов</h3>
+            <p>Создайте ваш первый проект, чтобы поделиться 3D-моделью с клиентом</p>
+            <button id="createFirstProject" class="btn btn-primary">Создать проект</button>
+          </div>
+        </div>
 
-        async function loadProjects() {
-            try {
-                const response = await fetch('/api/projects');
-                const projects = await response.json();
-                displayProjects(projects);
-                updateStats(projects);
-            } catch (error) {
-                console.error('Ошибка загрузки проектов:', error);
-            }
-        }
+        <!-- Вкладка архива -->
+        <div id="archive-tab" class="tab-content">
+          <div class="content-header">
+            <h2>Архив проектов</h2>
+            <p>Завершённые и просроченные проекты</p>
+          </div>
+          <div id="archiveList" class="projects-grid">
+            <!-- Архивные проекты -->
+          </div>
+        </div>
 
-        function displayProjects(projects) {
-            const projectsList = document.getElementById('projectsList');
-            const archiveList = document.getElementById('archiveList');
-            const emptyState = document.getElementById('emptyState');
-            const activeProjects = projects.filter(p => p.status === 'active');
-            const archivedProjects = projects.filter(p => p.status !== 'active');
-
-            if (activeProjects.length === 0) {
-                projectsList.innerHTML = '';
-                emptyState.style.display = 'block';
-            } else {
-                emptyState.style.display = 'none';
-                projectsList.innerHTML = activeProjects.map(project => `
-                    <div class="project-card">
-                        <div class="project-header">
-                            <h3>${project.name}</h3>
-                            <span class="project-status active">Активен</span>
-                        </div>
-                        <p>${project.description || 'Без описания'}</p>
-                        <div class="project-meta">
-                            <span>Истекает: ${new Date(project.expiresAt).toLocaleDateString()}</span>
-                        </div>
-                        <div class="project-actions">
-                            <button class="btn btn-outline btn-small copy-link" data-url="${project.fullShareUrl}">
-                                Копировать ссылку
-                            </button>
-                            <button class="btn btn-outline btn-small open-viewer" data-project-id="${project.id}">
-                                Открыть
-                            </button>
-                            <button class="btn btn-outline btn-small archive-project" data-project-id="${project.id}">
-                                Архивировать
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-
-            archiveList.innerHTML = archivedProjects.map(project => `
-                <div class="project-card archived">
-                    <h3>${project.name}</h3>
-                    <p>${project.description || '—'}</p>
-                    <div class="project-meta">
-                        <span>Завершен: ${new Date(project.expiresAt).toLocaleDateString()}</span>
-                    </div>
+        <!-- Вкладка настроек -->
+        <div id="settings-tab" class="tab-content">
+          <div class="content-header">
+            <h2>Настройки аккаунта</h2>
+          </div>
+          <div class="settings-content">
+            <div class="setting-group">
+              <h4>Тарифный план</h4>
+              <div class="plan-info">
+                <div class="current-plan">
+                  <strong>Текущий план: <span id="currentPlan">Free</span></strong>
                 </div>
-            `).join('');
+                <button class="btn btn-primary">Обновить до Pro</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Модальное окно создания проекта -->
+  <div id="projectModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Создать новый проект</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="projectForm" class="modal-form" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="projectName">Название проекта *</label>
+          <input type="text" id="projectName" name="name" required placeholder="Например: Дом для клиента Ивана" />
+        </div>
+        <div class="form-group">
+          <label for="projectDescription">Описание</label>
+          <textarea id="projectDescription" name="description" placeholder="Описание проекта для вас"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="projectModel">3D Модель *</label>
+          <div class="file-upload">
+            <input type="file" id="projectModel" name="model" accept=".stl,.glb,.obj" required />
+            <label for="projectModel" class="file-upload-label">
+              <span class="file-icon">📁</span>
+              <span class="file-text">Выберите файл модели</span>
+            </label>
+          </div>
+          <div class="file-info" id="fileInfo"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="projectExpires">Срок действия (часы)</label>
+            <select id="projectExpires" name="expiresIn">
+              <option value="24">24 часа</option>
+              <option value="72">3 дня</option>
+              <option value="168">7 дней</option>
+              <option value="720">30 дней</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="projectMode">Режим работы</label>
+            <select id="projectMode" name="mode">
+              <option value="individual">Индивидуальный</option>
+              <option value="collaborative">Совместный</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="projectPassword">Пароль (опционально)</label>
+          <input type="password" id="projectPassword" name="password" placeholder="Оставьте пустым для свободного доступа" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline modal-cancel">Отмена</button>
+          <button type="submit" class="btn btn-primary">Создать проект</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // === ВСЁ ОСТАЛЬНОЕ ОСТАЁТСЯ БЕЗ ИЗМЕНЕНИЙ ===
+    // (ваш текущий JS-код из dashboard.html)
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadProjects();
+      setupEventListeners();
+    });
+
+    async function loadProjects() {
+      try {
+        const response = await fetch('/api/projects');
+        const projects = await response.json();
+        displayProjects(projects);
+        updateStats(projects);
+        // Загрузка имени пользователя
+        const db = await fetch('/api/user').then(r => r.json()).catch(() => ({ name: 'Пользователь' }));
+        document.getElementById('userGreeting').textContent = `Привет, ${db.name || 'Пользователь'}!`;
+      } catch (error) {
+        console.error('Ошибка загрузки проектов:', error);
+      }
+    }
+
+    function displayProjects(projects) {
+      const projectsList = document.getElementById('projectsList');
+      const archiveList = document.getElementById('archiveList');
+      const emptyState = document.getElementById('emptyState');
+      const activeProjects = projects.filter(p => p.status === 'active');
+      const archivedProjects = projects.filter(p => p.status !== 'active');
+
+      if (activeProjects.length === 0) {
+        projectsList.innerHTML = '';
+        emptyState.style.display = 'block';
+      } else {
+        emptyState.style.display = 'none';
+        projectsList.innerHTML = activeProjects.map(project => `
+          <div class="project-card" data-project-id="${project.id}">
+            <div class="project-header">
+              <h3>${project.name}</h3>
+              <span class="project-status ${project.status}">${getStatusText(project.status)}</span>
+            </div>
+            <div class="project-info">
+              <p>${project.description || 'Без описания'}</p>
+              <div class="project-meta">
+                <span>Создан: ${new Date(project.createdAt).toLocaleDateString()}</span>
+                <span>Истекает: ${new Date(project.expiresAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+            <div class="project-actions">
+              <button class="btn btn-outline btn-small copy-link" data-url="${project.fullShareUrl}">Копировать ссылку</button>
+              <button class="btn btn-outline btn-small open-viewer" data-project-id="${project.id}">Открыть</button>
+              <button class="btn btn-outline btn-small archive-project" data-project-id="${project.id}">Архивировать</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      archiveList.innerHTML = archivedProjects.map(project => `
+        <div class="project-card archived" data-project-id="${project.id}">
+          <div class="project-header">
+            <h3>${project.name}</h3>
+            <span class="project-status ${project.status}">${getStatusText(project.status)}</span>
+          </div>
+          <div class="project-info">
+            <p>${project.description || 'Без описания'}</p>
+            <div class="project-meta">
+              <span>Создан: ${new Date(project.createdAt).toLocaleDateString()}</span>
+              <span>Завершён: ${new Date(project.expiresAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function getStatusText(status) {
+      const map = { active: 'Активен', archived: 'В архиве', expired: 'Истёк' };
+      return map[status] || status;
+    }
+
+    function updateStats(projects) {
+      const active = projects.filter(p => p.status === 'active').length;
+      document.getElementById('activeProjectsCount').textContent = active;
+      document.getElementById('userPlan').textContent = 'Free';
+      document.getElementById('currentPlan').textContent = 'Free';
+    }
+
+    function setupEventListeners() {
+      // Вкладки
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          item.classList.add('active');
+          document.getElementById(`${item.dataset.tab}-tab`).classList.add('active');
+        });
+      });
+
+      // Модальное окно
+      const modal = document.getElementById('projectModal');
+      ['newProjectBtn', 'createFirstProject'].forEach(id => {
+        document.getElementById(id).addEventListener('click', () => modal.style.display = 'flex');
+      });
+      ['.modal-close', '.modal-cancel'].forEach(sel => {
+        document.querySelector(sel).addEventListener('click', () => modal.style.display = 'none');
+      });
+      modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+
+      // Файл
+      document.getElementById('projectModel').addEventListener('change', function(e) {
+        const f = e.target.files[0];
+        const info = document.getElementById('fileInfo');
+        info.innerHTML = f ? `<strong>${f.name}</strong> (${(f.size / 1048576).toFixed(2)} MB)` : '';
+      });
+
+      // Форма
+      document.getElementById('projectForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.textContent = 'Создание...';
+        try {
+          const res = await fetch('/api/projects', { method: 'POST', body: new FormData(form) });
+          const r = await res.json();
+          if (r.success) {
+            modal.style.display = 'none';
+            form.reset();
+            document.getElementById('fileInfo').innerHTML = '';
+            await loadProjects();
+            alert(`✅ Проект создан!\n\nСсылка для клиента:\n${r.project.shareUrl}`);
+          } else {
+            alert('❌ ' + r.error);
+          }
+        } catch (err) {
+          alert('Ошибка сети: ' + err.message);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Создать проект';
         }
+      });
 
-        function updateStats(projects) {
-            const activeCount = projects.filter(p => p.status === 'active').length;
-            document.getElementById('activeProjectsCount').textContent = activeCount;
+      // Делегирование событий
+      document.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('copy-link')) {
+          await navigator.clipboard.writeText(e.target.dataset.url);
+          alert('🔗 Ссылка скопирована!');
+        } else if (e.target.classList.contains('open-viewer')) {
+          window.open(`/view/${e.target.dataset.projectId}`, '_blank');
+        } else if (e.target.classList.contains('archive-project')) {
+          if (confirm('Архивировать проект? Клиенты не смогут его просматривать.')) {
+            const id = e.target.dataset.projectId;
+            await fetch(`/api/projects/${id}/archive`, { method: 'POST' });
+            await loadProjects();
+          }
         }
+      });
 
-        function setupEventListeners() {
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-                    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-                    item.classList.add('active');
-                    document.getElementById(`${item.dataset.tab}-tab`).classList.add('active');
-                });
-            });
-
-            const modal = document.getElementById('projectModal');
-            document.getElementById('newProjectBtn').addEventListener('click', () => modal.style.display = 'flex');
-            document.getElementById('createFirstProject').addEventListener('click', () => modal.style.display = 'flex');
-            document.querySelector('.modal-close').addEventListener('click', () => modal.style.display = 'none');
-            document.querySelector('.modal-cancel').addEventListener('click', () => modal.style.display = 'none');
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) modal.style.display = 'none';
-            });
-
-            document.getElementById('projectModel').addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                const info = document.getElementById('fileInfo');
-                if (file) {
-                    info.textContent = `${file.name} (${(file.size / (1024*1024)).toFixed(2)} MB)`;
-                } else {
-                    info.textContent = '';
-                }
-            });
-
-            document.getElementById('projectForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const btn = e.target.querySelector('button[type="submit"]');
-                btn.disabled = true;
-                btn.textContent = 'Создание...';
-
-                try {
-                    const response = await fetch('/api/projects', {
-                        method: 'POST',
-                        body: formData // ✅ Правильная отправка multipart/form-data
-                    });
-                    const result = await response.json();
-                    if (result.success) {
-                        modal.style.display = 'none';
-                        e.target.reset();
-                        document.getElementById('fileInfo').textContent = '';
-                        await loadProjects();
-                        alert(`✅ Проект создан!\nСсылка для клиента:\n${result.project.shareUrl}`);
-                    } else {
-                        alert('❌ ' + result.error);
-                    }
-                } catch (err) {
-                    alert('Ошибка сети: ' + err.message);
-                } finally {
-                    btn.disabled = false;
-                    btn.textContent = 'Создать проект';
-                }
-            });
-
-            // Другие обработчики (copy-link, open-viewer, archive, logout)
-            document.addEventListener('click', async (e) => {
-                if (e.target.classList.contains('copy-link')) {
-                    await navigator.clipboard.writeText(e.target.dataset.url);
-                    alert('Ссылка скопирована!');
-                }
-                if (e.target.classList.contains('open-viewer')) {
-                    window.open(`/view/${e.target.dataset.projectId}`, '_blank');
-                }
-                if (e.target.classList.contains('archive-project')) {
-                    if (confirm('Архивировать проект?')) {
-                        await fetch(`/api/projects/${e.target.dataset.projectId}/archive`, { method: 'POST' });
-                        await loadProjects();
-                    }
-                }
-            });
-
-            document.getElementById('logoutBtn').addEventListener('click', async () => {
-                await fetch('/logout', { method: 'POST' });
-                window.location.href = '/';
-            });
-        }
-    </script>
+      // Выход
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await fetch('/logout', { method: 'POST' });
+        window.location.href = '/';
+      });
+    }
+  </script>
 </body>
 </html>
