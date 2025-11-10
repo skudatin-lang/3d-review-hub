@@ -1,9 +1,0 @@
-/* public/styles/core.css */
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: sans-serif; background: #f5f5f5; }
-.dashboard-container { display: flex; }
-.sidebar { width: 200px; background: #fff; padding: 20px; }
-.sidebar a { display: block; padding: 10px; text-decoration: none; color: #333; }
-.sidebar a.active { background: #007bff; color: white; }
-.content { flex: 1; padding: 20px; }
-.project-card { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; }
