@@ -32,9 +32,7 @@
     <div id="filesList"></div>
   </div>
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const cardId = urlParams.get('id');
-    
+    const cardId = new URLSearchParams(window.location.search).get('id');
     fetch(`/api/portfolio/card/${cardId}`)
       .then(res => res.json())
       .then(card => {
@@ -46,11 +44,9 @@
         card.items.forEach(file => {
           const el = document.createElement('div');
           el.className = 'file-item';
-          if (file.type === 'image') {
-            el.innerHTML = `<img src="/portfolio-files/${file.fileName}" alt="${file.originalName}">`;
-          } else {
-            el.textContent = file.originalName;
-          }
+          el.innerHTML = file.type === 'image' 
+            ? `<img src="/portfolio-files/${file.fileName}" alt="${file.originalName}">`
+            : `<div>${file.originalName}</div>`;
           filesList.appendChild(el);
         });
         
@@ -63,11 +59,9 @@
           const filesInFolder = document.createElement('div');
           folder.items.forEach(file => {
             const fileEl = document.createElement('div');
-            if (file.type === 'image') {
-              fileEl.innerHTML = `<img src="/portfolio-files/${file.fileName}" style="width:50px;">`;
-            } else {
-              fileEl.textContent = file.originalName;
-            }
+            fileEl.innerHTML = file.type === 'image'
+              ? `<img src="/portfolio-files/${file.fileName}" style="width:50px;">`
+              : `<div>${file.originalName}</div>`;
             filesInFolder.appendChild(fileEl);
           });
           folderEl.appendChild(filesInFolder);
