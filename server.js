@@ -1,10 +1,11 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs'); // ✅ Обязательно для работы с файлами
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
+const FileStore = require('session-file-store')(session);
 const http = require('http');
 const socketIo = require('socket.io');
 
@@ -12,110 +13,89 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// ✅ Используем PORT из переменной окружения (для Render)
 const PORT = process.env.PORT || 3000;
-
-// Пути
 const DB_FILE = 'database.json';
+const SESSION_DIR = './sessions';
 const UPLOAD_DIR = 'uploads/projects/';
 const PORTFOLIO_DIR = 'uploads/portfolio/';
 
-// Убедимся, что папки существуют
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-if (!fs.existsSync(PORTFOLIO_DIR)) fs.mkdirSync(PORTFOLIO_DIR, { recursive: true });
+// Создаём папки
+[SESSION_DIR, UPLOAD_DIR, PORTFOLIO_DIR].forEach(dir => {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+});
 
-// Чтение/запись базы
+// Чтение БД с защитой
 function readDB() {
   try {
     if (!fs.existsSync(DB_FILE)) {
-      fs.writeFileSync(DB_FILE, JSON.stringify({ users: [], projects: [], portfolio: [] }));
-      return { users: [], projects: [], portfolio: [] };
+      const emptyDB = { users: [], projects: [], portfolio: [] };
+      fs.writeFileSync(DB_FILE, JSON.stringify(emptyDB, null, 2));
+      return emptyDB;
     }
-    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    if (!data.users) data.users = [];
+    if (!data.projects) data.projects = [];
+    if (!data.portfolio) data.portfolio = [];
+    return data;
   } catch (err) {
     console.error('Ошибка чтения БД:', err);
     return { users: [], projects: [], portfolio: [] };
   }
 }
 
+// Запись БД с защитой
 function writeDB(data) {
   try {
+    if (!data || typeof data !== 'object') return;
+    if (!data.users) data.users = [];
+    if (!data.projects) data.projects = [];
+    if (!data.portfolio) data.portfolio = [];
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
   } catch (err) {
     console.error('Ошибка записи БД:', err);
   }
 }
 
-// Сессии
+// Сессии с сохранением на диск
 app.use(session({
   secret: process.env.SESSION_SECRET || '3d-review-hub-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
+  store: new FileStore({ path: SESSION_DIR, ttl: 24 * 60 * 60, retries: 0 }),
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
 }));
 
-// Раздача статики
+// Загрузка файлов
+const projectStorage = multer.diskStorage({ destination: (req, file, cb) => cb(null, UPLOAD_DIR), filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`) });
+const projectUpload = multer({ storage: projectStorage, fileFilter: (req, file, cb) => { const allowed = ['.stl', '.glb', '.obj']; if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true); else cb(new Error('Разрешены: .stl, .glb, .obj')); }, limits: { fileSize: 100 * 1024 * 1024 } });
+
+const portfolioStorage = multer.diskStorage({ destination: (req, file, cb) => cb(null, PORTFOLIO_DIR), filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`) });
+const portfolioUpload = multer({ storage: portfolioStorage, fileFilter: (req, file, cb) => { const isImage = file.mimetype.startsWith('image/'); const isVideo = file.mimetype.startsWith('video/'); const isSTL = file.mimetype === 'application/octet-stream' && file.originalname.toLowerCase().endsWith('.stl'); if (isImage || isVideo || isSTL) cb(null, true); else cb(new Error('Разрешены: изображения, видео и STL-файлы')); }, limits: { fileSize: 200 * 1024 * 1024 } });
+
+// Middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
 app.use('/models', express.static('uploads/projects'));
 app.use('/portfolio-files', express.static('uploads/portfolio'));
 
-// Парсинг тела запроса
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Middleware авторизации
 function requireAuth(req, res, next) {
   if (req.session.userId) next();
   else res.redirect('/login');
 }
 
-// === Настройка загрузки ===
-
-// Для 3D-моделей
-const projectStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`)
-});
-const projectUpload = multer({
-  storage: projectStorage,
-  fileFilter: (req, file, cb) => {
-    const allowed = ['.stl', '.glb', '.obj'];
-    if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true);
-    else cb(new Error('Разрешены: .stl, .glb, .obj'));
-  },
-  limits: { fileSize: 100 * 1024 * 1024 } // 100 МБ
-});
-
-// Для портфолио
-const portfolioStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, PORTFOLIO_DIR),
-  filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`)
-});
-const portfolioUpload = multer({
-  storage: portfolioStorage,
-  fileFilter: (req, file, cb) => {
-    const isImage = file.mimetype.startsWith('image/');
-    const isVideo = file.mimetype.startsWith('video/');
-    const isSTL = file.mimetype === 'application/octet-stream' && 
-                  file.originalname.toLowerCase().endsWith('.stl');
-    if (isImage || isVideo || isSTL) cb(null, true);
-    else cb(new Error('Разрешены: изображения, видео и STL-файлы'));
-  },
-  limits: { fileSize: 200 * 1024 * 1024 } // 200 МБ
-});
-
-// === Роуты ===
-
-// Главная
+// Роуты
 app.get('/', (req, res) => {
   if (req.session.userId) res.redirect('/dashboard');
   else res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Аутентификация
 app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/view/:projectId', (req, res) => res.sendFile(path.join(__dirname, 'public', 'viewer.html')));
 
+// Аутентификация
 app.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
@@ -152,12 +132,7 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true, redirect: '/' }));
 });
 
-// Дашборд
-app.get('/dashboard', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
-
-// API: проекты
+// Проекты
 app.get('/api/projects', requireAuth, (req, res) => {
   try {
     const db = readDB();
@@ -196,7 +171,7 @@ app.post('/api/projects', requireAuth, projectUpload.single('model'), (req, res)
       shareUrl: `/view/${projectId}`,
       fullShareUrl,
       password: password || '',
-      mode: mode,
+      mode,
       status: 'active',
       createdAt: new Date().toISOString(),
       expiresAt: expiresAt.toISOString(),
@@ -209,12 +184,7 @@ app.post('/api/projects', requireAuth, projectUpload.single('model'), (req, res)
 
     res.json({
       success: true,
-      project: {
-        id: project.id,
-        name: project.name,
-        shareUrl: project.fullShareUrl,
-        expiresAt: project.expiresAt
-      }
+      project: { id: project.id, name: project.name, shareUrl: project.fullShareUrl, expiresAt: project.expiresAt }
     });
   } catch (err) {
     console.error('Ошибка создания проекта:', err);
@@ -235,7 +205,7 @@ app.post('/api/projects/:projectId/archive', requireAuth, (req, res) => {
   }
 });
 
-// API: портфолио
+// Портфолио
 app.get('/api/portfolio', requireAuth, (req, res) => {
   try {
     const db = readDB();
@@ -270,7 +240,7 @@ app.post('/api/portfolio', requireAuth, portfolioUpload.single('file'), (req, re
   }
 });
 
-// API: просмотр модели
+// Просмотр
 app.get('/api/view/:projectId', (req, res) => {
   try {
     const db = readDB();
@@ -293,11 +263,6 @@ app.get('/api/view/:projectId', (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Ошибка загрузки модели' });
   }
-});
-
-// Страницы
-app.get('/view/:projectId', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'viewer.html'));
 });
 
 // WebSocket
@@ -325,7 +290,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Вспомогательные функции
+// Утилиты
 function cleanupExpiredProjects() {
   try {
     const db = readDB();
@@ -342,7 +307,7 @@ function cleanupExpiredProjects() {
     console.error('Ошибка очистки:', err);
   }
 }
-setInterval(cleanupExpiredProjects, 6 * 60 * 60 * 1000); // раз в 6 часов
+setInterval(cleanupExpiredProjects, 6 * 60 * 60 * 1000);
 
 // Запуск
 server.listen(PORT, () => {
