@@ -1,126 +1,422 @@
-<!-- Вставьте этот блок ВМЕСТО текущей вкладки портфолио в вашем dashboard.html -->
-
-<!-- Вкладка портфолио -->
-<div id="portfolio-tab" class="tab-content">
-  <div class="content-header">
-    <h2>Моё портфолио</h2>
-    <p>Организуйте работы в карточки с подпапками</p>
-  </div>
-  <button id="addPortfolioCardBtn" class="btn btn-primary">+ Новая карточка</button>
-  <div id="portfolioCards" class="projects-grid"></div>
-  <div id="portfolioEmpty" class="empty-state" style="display:none;">
-    <div class="empty-icon">🖼️</div>
-    <h3>Портфолио пусто</h3>
-  </div>
-</div>
-
-<!-- Модалка: Новая карточка -->
-<div id="portfolioCardModal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>Новая карточка портфолио</h3>
-      <button class="modal-close">&times;</button>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет - 3D Review Hub</title>
+    <link rel="stylesheet" href="styles/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Шапка -->
+        <header class="dashboard-header">
+            <div class="header-brand">
+                <h1>3D Review Hub</h1>
+                <span id="userGreeting">Добро пожаловать!</span>
+            </div>
+            <div class="header-actions">
+                <button id="newProjectBtn" class="btn btn-primary">+ Новый проект</button>
+                <button id="logoutBtn" class="btn btn-outline">Выйти</button>
+            </div>
+        </header>
+        <main class="dashboard-main">
+            <!-- Боковая панель -->
+            <aside class="sidebar">
+                <nav class="sidebar-nav">
+                    <a href="#" class="nav-item active" data-tab="projects">📁 Мои проекты</a>
+                    <a href="#" class="nav-item" data-tab="archive">🗄️ Архив</a>
+                    <a href="#" class="nav-item" data-tab="portfolio">🎨 Портфолио</a>
+                    <a href="#" class="nav-item" data-tab="settings">⚙️ Настройки</a>
+                </nav>
+                <div class="user-stats">
+                    <h4>Статистика</h4>
+                    <div class="stat">
+                        <span>Активных проектов:</span>
+                        <strong id="activeProjectsCount">0</strong>
+                    </div>
+                    <div class="stat">
+                        <span>Тариф:</span>
+                        <strong id="userPlan">Free</strong>
+                    </div>
+                </div>
+            </aside>
+            <!-- Основной контент -->
+            <section class="content">
+                <!-- Вкладка проектов -->
+                <div id="projects-tab" class="tab-content active">
+                    <div class="content-header">
+                        <h2>Активные проекты</h2>
+                        <p>Проекты, доступные для просмотра клиентами</p>
+                    </div>
+                    <div id="projectsList" class="projects-grid"></div>
+                    <div id="emptyState" class="empty-state">
+                        <div class="empty-icon">📁</div>
+                        <h3>Пока нет проектов</h3>
+                        <p>Создайте ваш первый проект чтобы поделиться 3D моделью с клиентом</p>
+                        <button id="createFirstProject" class="btn btn-primary">Создать проект</button>
+                    </div>
+                </div>
+                <!-- Вкладка архива -->
+                <div id="archive-tab" class="tab-content">
+                    <div class="content-header">
+                        <h2>Архив проектов</h2>
+                        <p>Завершенные и просроченные проекты</p>
+                    </div>
+                    <div id="archiveList" class="projects-grid"></div>
+                </div>
+                <!-- Вкладка портфолио -->
+                <div id="portfolio-tab" class="tab-content">
+                    <div class="content-header">
+                        <h2>Моё портфолио</h2>
+                        <p>Организуйте свои работы в карточки с подпапками</p>
+                    </div>
+                    <button id="addPortfolioCardBtn" class="btn btn-primary">+ Новая карточка</button>
+                    <div id="portfolioCards" class="projects-grid"></div>
+                    <div id="portfolioEmpty" class="empty-state" style="display: none;">
+                        <div class="empty-icon">🖼️</div>
+                        <h3>Портфолио ещё пусто</h3>
+                        <p>Создайте первую карточку, чтобы показать свои работы</p>
+                    </div>
+                </div>
+                <!-- Вкладка настроек -->
+                <div id="settings-tab" class="tab-content">
+                    <div class="content-header">
+                        <h2>Настройки аккаунта</h2>
+                    </div>
+                    <div class="settings-content">
+                        <div class="setting-group">
+                            <h4>Тарифный план</h4>
+                            <div class="plan-info">
+                                <div class="current-plan">
+                                    <strong>Текущий план: <span id="currentPlan">Free</span></strong>
+                                </div>
+                                <button class="btn btn-primary">Обновить до Pro</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
     </div>
-    <form id="portfolioCardForm" class="modal-form">
-      <div class="form-group">
-        <label>Название *</label>
-        <input type="text" name="title" required>
-      </div>
-      <div class="form-group">
-        <label>Описание</label>
-        <textarea name="description"></textarea>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-outline modal-cancel">Отмена</button>
-        <button type="submit" class="btn btn-primary">Создать</button>
-      </div>
-    </form>
-  </div>
-</div>
 
-<!-- Добавьте в конец <script> в dashboard.html -->
-<script>
-// === ПОРТФОЛИО С ПАПКАМИ ===
-async function loadPortfolio() {
-  try {
-    const res = await fetch('/api/portfolio');
-    const cards = await res.json();
-    displayPortfolio(cards);
-  } catch (err) {
-    console.error('Ошибка загрузки портфолио:', err);
-  }
-}
-
-function displayPortfolio(cards) {
-  const grid = document.getElementById('portfolioCards');
-  const empty = document.getElementById('portfolioEmpty');
-  if (cards.length === 0) {
-    grid.innerHTML = '';
-    empty.style.display = 'block';
-  } else {
-    empty.style.display = 'none';
-    grid.innerHTML = cards.map(card => `
-      <div class="project-card">
-        <h3>${card.title}</h3>
-        <p>${card.description || '—'}</p>
-        <div class="project-actions">
-          <button class="btn btn-outline btn-small open-portfolio-card" data-id="${card.id}">
-            Открыть
-          </button>
-          <button class="btn btn-outline btn-small delete-portfolio-card" data-id="${card.id}">
-            Удалить
-          </button>
+    <!-- Модальное окно проекта -->
+    <div id="projectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Создать новый проект</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="projectForm" class="modal-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="projectName">Название проекта *</label>
+                    <input type="text" id="projectName" name="name" required placeholder="Например: Дом для клиента Ивана">
+                </div>
+                <div class="form-group">
+                    <label for="projectDescription">Описание</label>
+                    <textarea id="projectDescription" name="description" placeholder="Описание проекта для вас"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="projectModel">3D Модель *</label>
+                    <div class="file-upload">
+                        <input type="file" id="projectModel" name="model" accept=".stl,.glb,.obj" required>
+                        <label for="projectModel" class="file-upload-label">
+                            <span class="file-icon">📁</span>
+                            <span class="file-text">Выберите файл модели</span>
+                        </label>
+                    </div>
+                    <div class="file-info" id="fileInfo"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="projectExpires">Срок действия (часы)</label>
+                        <select id="projectExpires" name="expiresIn">
+                            <option value="24">24 часа</option>
+                            <option value="72">3 дня</option>
+                            <option value="168">7 дней</option>
+                            <option value="720">30 дней</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="projectMode">Режим работы</label>
+                        <select id="projectMode" name="mode">
+                            <option value="individual">Индивидуальный</option>
+                            <option value="collaborative">Совместный</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="projectPassword">Пароль (опционально)</label>
+                    <input type="password" id="projectPassword" name="password" placeholder="Оставьте пустым для свободного доступа">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline modal-cancel">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Создать проект</button>
+                </div>
+            </form>
         </div>
-        <div class="portfolio-stats" style="font-size:0.8em; color:#888; margin-top:8px;">
-          Файлов: ${card.items?.length || 0}, Папок: ${card.folders?.length || 0}
+    </div>
+
+    <!-- Модальное окно: Новая карточка портфолио -->
+    <div id="portfolioCardModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Новая карточка портфолио</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="portfolioCardForm" class="modal-form">
+                <div class="form-group">
+                    <label>Название карточки *</label>
+                    <input type="text" name="title" required placeholder="Например: Архитектурная визуализация">
+                </div>
+                <div class="form-group">
+                    <label>Описание</label>
+                    <textarea name="description" placeholder="Кратко опишите проект"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline modal-cancel">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Создать карточку</button>
+                </div>
+            </form>
         </div>
-      </div>
-    `).join('');
-  }
-}
+    </div>
 
-// Обработчики
-document.getElementById('addPortfolioCardBtn')?.addEventListener('click', () => {
-  document.getElementById('portfolioCardModal').style.display = 'flex';
-});
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadProjects();
+            setupEventListeners();
+        });
 
-document.getElementById('portfolioCardForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
-  try {
-    const res = await fetch('/api/portfolio/card', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const result = await res.json();
-    if (result.success) {
-      document.getElementById('portfolioCardModal').style.display = 'none';
-      e.target.reset();
-      await loadPortfolio();
-      alert('✅ Карточка создана!');
-    } else {
-      alert('❌ ' + result.error);
-    }
-  } catch (err) {
-    alert('Ошибка сети: ' + err.message);
-  }
-});
+        // === ПРОЕКТЫ ===
+        async function loadProjects() {
+            try {
+                const res = await fetch('/api/projects');
+                const projects = await res.json();
+                displayProjects(projects);
+                updateStats(projects);
+            } catch (err) {
+                console.error('Ошибка загрузки проектов:', err);
+            }
+        }
 
-document.addEventListener('click', (e) => {
-  if (e.target.classList.contains('open-portfolio-card')) {
-    window.open(`/portfolio/view?id=${e.target.dataset.id}`, '_blank');
-  }
-  if (e.target.classList.contains('delete-portfolio-card')) {
-    if (confirm('Удалить карточку?')) {
-      fetch(`/api/portfolio/card/${e.target.dataset.id}`, { method: 'DELETE' })
-        .then(() => loadPortfolio());
-    }
-  }
-});
+        function displayProjects(projects) {
+            const active = projects.filter(p => p.status === 'active');
+            const archived = projects.filter(p => p.status !== 'active');
+            const list = document.getElementById('projectsList');
+            const archiveList = document.getElementById('archiveList');
+            const empty = document.getElementById('emptyState');
 
-// При открытии вкладки
-document.querySelectorAll('.nav-item[data-tab="portfolio"]').forEach(link => {
-  link.addEventListener('click', () => loadPortfolio());
-});
-</script>
+            if (active.length === 0) {
+                list.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                list.innerHTML = active.map(p => `
+                    <div class="project-card">
+                        <div class="project-header">
+                            <h3>${p.name}</h3>
+                            <span class="project-status active">Активен</span>
+                        </div>
+                        <p>${p.description || '—'}</p>
+                        <div class="project-meta">
+                            <span>Истекает: ${new Date(p.expiresAt).toLocaleDateString()}</span>
+                        </div>
+                        <div class="project-actions">
+                            <button class="btn btn-outline btn-small copy-link" data-url="${p.fullShareUrl}">Копировать ссылку</button>
+                            <button class="btn btn-outline btn-small open-viewer" data-id="${p.id}">Открыть</button>
+                            <button class="btn btn-outline btn-small archive-project" data-id="${p.id}">Архивировать</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            archiveList.innerHTML = archived.map(p => `
+                <div class="project-card archived">
+                    <h3>${p.name}</h3>
+                    <p>${p.description || '—'}</p>
+                    <div class="project-meta">
+                        <span>Завершен: ${new Date(p.expiresAt).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // === ПОРТФОЛИО ===
+        async function loadPortfolio() {
+            try {
+                const res = await fetch('/api/portfolio');
+                const cards = await res.json();
+                displayPortfolio(cards);
+            } catch (err) {
+                console.error('Ошибка загрузки портфолио:', err);
+            }
+        }
+
+        function displayPortfolio(cards) {
+            const grid = document.getElementById('portfolioCards');
+            const empty = document.getElementById('portfolioEmpty');
+            if (cards.length === 0) {
+                grid.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                grid.innerHTML = cards.map(card => `
+                    <div class="project-card">
+                        <h3>${card.title}</h3>
+                        <p>${card.description || '—'}</p>
+                        <div class="project-actions">
+                            <button class="btn btn-outline btn-small open-portfolio-card" data-id="${card.id}">
+                                Открыть
+                            </button>
+                            <button class="btn btn-outline btn-small delete-portfolio-card" data-id="${card.id}">
+                                Удалить
+                            </button>
+                        </div>
+                        <div class="portfolio-files-count">
+                            Файлов: ${(card.items?.length || 0) + (card.folders?.reduce((sum, f) => sum + f.items.length, 0) || 0)}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function updateStats(projects) {
+            const count = projects.filter(p => p.status === 'active').length;
+            document.getElementById('activeProjectsCount').textContent = count;
+        }
+
+        // === ОБРАБОТЧИКИ ===
+        function setupEventListeners() {
+            // Вкладки
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                    item.classList.add('active');
+                    const tab = item.dataset.tab;
+                    document.getElementById(`${tab}-tab`).classList.add('active');
+
+                    if (tab === 'portfolio') loadPortfolio();
+                });
+            });
+
+            // Модалки
+            function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+            function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+            document.getElementById('newProjectBtn').addEventListener('click', () => openModal('projectModal'));
+            document.getElementById('createFirstProject').addEventListener('click', () => openModal('projectModal'));
+            document.getElementById('addPortfolioCardBtn').addEventListener('click', () => openModal('portfolioCardModal'));
+
+            document.querySelectorAll('.modal-close, .modal-cancel').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    closeModal('projectModal');
+                    closeModal('portfolioCardModal');
+                });
+            });
+
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeModal(modal.id);
+                });
+            });
+
+            // Инфо о файлах
+            document.getElementById('projectModel')?.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                document.getElementById('fileInfo').textContent = file ? `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)` : '';
+            });
+
+            // Формы
+            document.getElementById('projectForm')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const data = new FormData(e.target);
+                const btn = e.target.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.textContent = 'Создание...';
+                try {
+                    const res = await fetch('/api/projects', { method: 'POST', body: data });
+                    const result = await res.json();
+                    if (result.success) {
+                        closeModal('projectModal');
+                        e.target.reset();
+                        document.getElementById('fileInfo').textContent = '';
+                        await loadProjects();
+                        alert(`✅ Проект создан!\nСсылка:\n${result.project.shareUrl}`);
+                    } else {
+                        alert('❌ ' + result.error);
+                    }
+                } catch (err) {
+                    alert('Ошибка сети: ' + err.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Создать проект';
+                }
+            });
+
+            document.getElementById('portfolioCardForm')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const data = Object.fromEntries(new FormData(e.target));
+                const btn = e.target.querySelector('button[type="submit"]');
+                btn.disabled = true;
+                btn.textContent = 'Создание...';
+                try {
+                    const res = await fetch('/api/portfolio/card', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        closeModal('portfolioCardModal');
+                        e.target.reset();
+                        await loadPortfolio();
+                        alert('✅ Карточка портфолио создана!');
+                    } else {
+                        alert('❌ ' + result.error);
+                    }
+                } catch (err) {
+                    alert('Ошибка сети: ' + err.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Создать карточку';
+                }
+            });
+
+            // Действия
+            document.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('copy-link')) {
+                    await navigator.clipboard.writeText(e.target.dataset.url);
+                    alert('🔗 Ссылка скопирована!');
+                }
+                if (e.target.classList.contains('open-viewer')) {
+                    window.open(`/view/${e.target.dataset.id}`, '_blank');
+                }
+                if (e.target.classList.contains('archive-project')) {
+                    if (confirm('Архивировать проект?')) {
+                        const id = e.target.dataset.id;
+                        await fetch(`/api/projects/${id}/archive`, { method: 'POST' });
+                        await loadProjects();
+                    }
+                }
+                if (e.target.classList.contains('open-portfolio-card')) {
+                    window.open(`/portfolio/view?id=${e.target.dataset.id}`, '_blank');
+                }
+                if (e.target.classList.contains('delete-portfolio-card')) {
+                    if (confirm('Удалить карточку портфолио?')) {
+                        const id = e.target.dataset.id;
+                        await fetch(`/api/portfolio/card/${id}`, { method: 'DELETE' });
+                        await loadPortfolio();
+                    }
+                }
+            });
+
+            // Выход
+            document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+                await fetch('/logout', { method: 'POST' });
+                window.location.href = '/';
+            });
+        }
+    </script>
+</body>
+</html>
