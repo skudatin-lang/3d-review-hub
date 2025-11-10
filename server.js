@@ -12,47 +12,62 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+// Используем PORT из переменной окружения (для Render)
 const PORT = process.env.PORT || 3000;
+
+// Путь к базе данных
 const DB_FILE = 'database.json';
+
+// Создаем папки
 const UPLOAD_DIR = 'uploads/projects/';
 const PORTFOLIO_DIR = 'uploads/portfolio/';
 
-[UPLOAD_DIR, PORTFOLIO_DIR].forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+if (!fs.existsSync(PORTFOLIO_DIR)) {
+  fs.mkdirSync(PORTFOLIO_DIR, { recursive: true });
+}
 
+// Чтение базы данных
 function readDB() {
   try {
     if (!fs.existsSync(DB_FILE)) {
       fs.writeFileSync(DB_FILE, JSON.stringify({ users: [], projects: [], portfolio: [] }));
       return { users: [], projects: [], portfolio: [] };
     }
-    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-    if (!data.portfolio) data.portfolio = [];
-    return data;
-  } catch (err) {
-    console.error('Ошибка чтения БД:', err);
+    const data = fs.readFileSync(DB_FILE, 'utf8');
+    const parsed = JSON.parse(data);
+    if (!parsed.portfolio) parsed.portfolio = [];
+    return parsed;
+  } catch (error) {
+    console.error('Ошибка чтения БД:', error);
     return { users: [], projects: [], portfolio: [] };
   }
 }
 
+// Запись базы данных
 function writeDB(data) {
   try {
     if (!data.portfolio) data.portfolio = [];
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-  } catch (err) {
-    console.error('Ошибка записи БД:', err);
+  } catch (error) {
+    console.error('Ошибка записи БД:', error);
   }
 }
 
+// Настройка сессий
 app.use(session({
-  secret: process.env.SESSION_SECRET || '3d-review-hub-secret-key',
+  secret: process.env.SESSION_SECRET || '3d-review-hub-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+  cookie: {
+    secure: false,
+    maxAge: 24 * 60 * 60 * 1000
+  }
 }));
 
-// Загрузка для проектов
+// Загрузка файлов
 const projectStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`)
@@ -67,7 +82,6 @@ const projectUpload = multer({
   limits: { fileSize: 100 * 1024 * 1024 }
 });
 
-// Загрузка для портфолио
 const portfolioStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, PORTFOLIO_DIR),
   filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`)
@@ -77,59 +91,102 @@ const portfolioUpload = multer({
   fileFilter: (req, file, cb) => {
     const isImage = file.mimetype.startsWith('image/');
     const isVideo = file.mimetype.startsWith('video/');
-    const isSTL = file.mimetype === 'application/octet-stream' && file.originalname.toLowerCase().endsWith('.stl');
+    const isSTL = file.mimetype === 'application/octet-stream' && 
+                  file.originalname.toLowerCase().endsWith('.stl');
     if (isImage || isVideo || isSTL) cb(null, true);
     else cb(new Error('Разрешены: изображения, видео и STL-файлы'));
   },
   limits: { fileSize: 200 * 1024 * 1024 }
 });
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use('/models', express.static('uploads/projects'));
 app.use('/portfolio-files', express.static('uploads/portfolio'));
 
+// Middleware авторизации
 function requireAuth(req, res, next) {
   if (req.session.userId) next();
   else res.redirect('/login');
 }
 
-// ====== ОСНОВНЫЕ РОУТЫ (регистрация, проекты) — без изменений ======
-app.get('/', (req, res) => { if (req.session.userId) res.redirect('/dashboard'); else res.sendFile(path.join(__dirname, 'public', 'index.html')); });
-app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
-app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
-app.get('/view/:projectId', (req, res) => res.sendFile(path.join(__dirname, 'public', 'viewer.html')));
+// ====== Роуты ======
 
+// Главная страница
+app.get('/', (req, res) => {
+  if (req.session.userId) {
+    res.redirect('/dashboard');
+  } else {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  }
+});
+
+// Вход / регистрация
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'register.html'));
+});
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// API: регистрация
 app.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
-    if (!email || !password || !name) return res.status(400).json({ error: 'Все поля обязательны' });
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'Все поля обязательны' });
+    }
     const db = readDB();
-    if (db.users.some(u => u.email === email)) return res.status(400).json({ error: 'Email уже используется' });
+    if (db.users.some(u => u.email === email)) {
+      return res.status(400).json({ error: 'Email уже используется' });
+    }
     const hashed = await bcrypt.hash(password, 10);
-    const user = { id: uuidv4(), email, password: hashed, name, createdAt: new Date().toISOString(), plan: 'free' };
+    const user = {
+      id: uuidv4(),
+      email,
+      password: hashed,
+      name,
+      createdAt: new Date().toISOString(),
+      plan: 'free'
+    };
     db.users.push(user);
     writeDB(db);
     req.session.userId = user.id;
-    res.json({ success: true, redirect: '/dashboard' });
-  } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
+    res.json({ success: true, redirect: '/dashboard' }); // ✅ Всегда перенаправляем на dashboard
+  } catch (err) {
+    console.error('Ошибка регистрации:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
+// API: вход
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const db = readDB();
     const user = db.users.find(u => u.email === email);
-    if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: 'Неверный email или пароль' });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(400).json({ error: 'Неверный email или пароль' });
+    }
     req.session.userId = user.id;
-    res.json({ success: true, redirect: '/dashboard' });
-  } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
+    res.json({ success: true, redirect: '/dashboard' }); // ✅ Всегда перенаправляем на dashboard
+  } catch (err) {
+    console.error('Ошибка входа:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
+// API: выход
 app.post('/logout', (req, res) => {
   req.session.destroy(() => res.json({ success: true, redirect: '/' }));
+});
+
+// Дашборд
+app.get('/dashboard', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 // Проекты
@@ -138,7 +195,9 @@ app.get('/api/projects', requireAuth, (req, res) => {
     const db = readDB();
     const projects = db.projects.filter(p => p.userId === req.session.userId);
     res.json(projects);
-  } catch (err) { res.status(500).json({ error: 'Ошибка загрузки проектов' }); }
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки проектов' });
+  }
 });
 
 app.post('/api/projects', requireAuth, projectUpload.single('model'), (req, res) => {
@@ -182,9 +241,17 @@ app.post('/api/projects', requireAuth, projectUpload.single('model'), (req, res)
 
     res.json({
       success: true,
-      project: { id: project.id, name: project.name, shareUrl: project.fullShareUrl, expiresAt: project.expiresAt }
+      project: {
+        id: project.id,
+        name: project.name,
+        shareUrl: project.fullShareUrl,
+        expiresAt: project.expiresAt
+      }
     });
-  } catch (err) { res.status(500).json({ error: 'Ошибка сервера' }); }
+  } catch (err) {
+    console.error('Ошибка создания проекта:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 app.post('/api/projects/:projectId/archive', requireAuth, (req, res) => {
@@ -195,9 +262,12 @@ app.post('/api/projects/:projectId/archive', requireAuth, (req, res) => {
     project.status = 'archived';
     writeDB(db);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: 'Ошибка архивации' }); }
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка архивации' });
+  }
 });
 
+// Просмотр модели
 app.get('/api/view/:projectId', (req, res) => {
   try {
     const db = readDB();
@@ -217,10 +287,49 @@ app.get('/api/view/:projectId', (req, res) => {
       userName: project.userName,
       mode: project.mode
     });
-  } catch (err) { res.status(500).json({ error: 'Ошибка загрузки модели' }); }
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки модели' });
+  }
 });
 
-// ====== НОВЫЕ РОУТЫ ДЛЯ ПОРТФОЛИО С ПАПКАМИ ======
+// Страница просмотра
+app.get('/view/:projectId', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'viewer.html'));
+});
+
+// WebSocket
+const activeRooms = new Map();
+io.on('connection', (socket) => {
+  socket.on('join-room', (projectId) => {
+    socket.join(projectId);
+    if (!activeRooms.has(projectId)) activeRooms.set(projectId, new Set());
+    activeRooms.get(projectId).add(socket.id);
+    socket.to(projectId).emit('user-joined', { userId: socket.id });
+  });
+  socket.on('camera-update', (data) => {
+    socket.to(data.projectId).emit('camera-updated', {
+      userId: socket.id,
+      position: data.position,
+      rotation: data.rotation
+    });
+  });
+  socket.on('annotation-add', (data) => {
+    socket.to(data.projectId).emit('annotation-added', {
+      userId: socket.id,
+      annotation: data.annotation
+    });
+  });
+  socket.on('disconnect', () => {
+    for (const [roomId, users] of activeRooms.entries()) {
+      if (users.delete(socket.id)) {
+        socket.to(roomId).emit('user-left', { userId: socket.id });
+        if (users.size === 0) activeRooms.delete(roomId);
+      }
+    }
+  });
+});
+
+// ====== ПОРТФОЛИО ======
 
 // Получить все карточки портфолио
 app.get('/api/portfolio', requireAuth, (req, res) => {
@@ -342,7 +451,7 @@ app.post('/api/portfolio/card/:cardId/folder/:folderId/upload', requireAuth, por
   }
 });
 
-// Получить карточку для просмотра
+// Получить данные карточки (для просмотра)
 app.get('/api/portfolio/card/:cardId', (req, res) => {
   try {
     const db = readDB();
@@ -359,31 +468,7 @@ app.get('/portfolio/view', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'portfolio-view.html'));
 });
 
-// WebSocket
-const activeRooms = new Map();
-io.on('connection', (socket) => {
-  socket.on('join-room', (projectId) => {
-    socket.join(projectId);
-    if (!activeRooms.has(projectId)) activeRooms.set(projectId, new Set());
-    activeRooms.get(projectId).add(socket.id);
-    socket.to(projectId).emit('user-joined', { userId: socket.id });
-  });
-  socket.on('camera-update', (data) => {
-    socket.to(data.projectId).emit('camera-updated', { userId: socket.id, position: data.position, rotation: data.rotation });
-  });
-  socket.on('annotation-add', (data) => {
-    socket.to(data.projectId).emit('annotation-added', { userId: socket.id, annotation: data.annotation });
-  });
-  socket.on('disconnect', () => {
-    for (const [roomId, users] of activeRooms.entries()) {
-      if (users.delete(socket.id)) {
-        socket.to(roomId).emit('user-left', { userId: socket.id });
-        if (users.size === 0) activeRooms.delete(roomId);
-      }
-    }
-  });
-});
-
+// Утилиты
 function cleanupExpiredProjects() {
   try {
     const db = readDB();
@@ -402,6 +487,7 @@ function cleanupExpiredProjects() {
 }
 setInterval(cleanupExpiredProjects, 6 * 60 * 60 * 1000);
 
+// Запуск
 server.listen(PORT, () => {
   console.log(`✅ 3D Review Hub запущен на порту ${PORT}`);
 });
