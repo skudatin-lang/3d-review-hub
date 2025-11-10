@@ -19,12 +19,10 @@ const SESSION_DIR = './sessions';
 const UPLOAD_DIR = 'uploads/projects/';
 const PORTFOLIO_DIR = 'uploads/portfolio/';
 
-// Создаём папки
 [SESSION_DIR, UPLOAD_DIR, PORTFOLIO_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
-// Чтение БД с защитой
 function readDB() {
   try {
     if (!fs.existsSync(DB_FILE)) {
@@ -43,7 +41,6 @@ function readDB() {
   }
 }
 
-// Запись БД с защитой
 function writeDB(data) {
   try {
     if (!data || typeof data !== 'object') return;
@@ -56,7 +53,6 @@ function writeDB(data) {
   }
 }
 
-// Сессии с сохранением на диск
 app.use(session({
   secret: process.env.SESSION_SECRET || '3d-review-hub-secret-key-change-in-production',
   resave: false,
@@ -65,14 +61,36 @@ app.use(session({
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
 }));
 
-// Загрузка файлов
-const projectStorage = multer.diskStorage({ destination: (req, file, cb) => cb(null, UPLOAD_DIR), filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`) });
-const projectUpload = multer({ storage: projectStorage, fileFilter: (req, file, cb) => { const allowed = ['.stl', '.glb', '.obj']; if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true); else cb(new Error('Разрешены: .stl, .glb, .obj')); }, limits: { fileSize: 100 * 1024 * 1024 } });
+const projectStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`)
+});
+const projectUpload = multer({
+  storage: projectStorage,
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.stl', '.glb', '.obj'];
+    if (allowed.includes(path.extname(file.originalname).toLowerCase())) cb(null, true);
+    else cb(new Error('Разрешены: .stl, .glb, .obj'));
+  },
+  limits: { fileSize: 100 * 1024 * 1024 }
+});
 
-const portfolioStorage = multer.diskStorage({ destination: (req, file, cb) => cb(null, PORTFOLIO_DIR), filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`) });
-const portfolioUpload = multer({ storage: portfolioStorage, fileFilter: (req, file, cb) => { const isImage = file.mimetype.startsWith('image/'); const isVideo = file.mimetype.startsWith('video/'); const isSTL = file.mimetype === 'application/octet-stream' && file.originalname.toLowerCase().endsWith('.stl'); if (isImage || isVideo || isSTL) cb(null, true); else cb(new Error('Разрешены: изображения, видео и STL-файлы')); }, limits: { fileSize: 200 * 1024 * 1024 } });
+const portfolioStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, PORTFOLIO_DIR),
+  filename: (req, file, cb) => cb(null, `${uuidv4()}_${file.originalname}`)
+});
+const portfolioUpload = multer({
+  storage: portfolioStorage,
+  fileFilter: (req, file, cb) => {
+    const isImage = file.mimetype.startsWith('image/');
+    const isVideo = file.mimetype.startsWith('video/');
+    const isSTL = file.mimetype === 'application/octet-stream' && file.originalname.toLowerCase().endsWith('.stl');
+    if (isImage || isVideo || isSTL) cb(null, true);
+    else cb(new Error('Разрешены: изображения, видео и STL-файлы'));
+  },
+  limits: { fileSize: 200 * 1024 * 1024 }
+});
 
-// Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static('public'));
@@ -84,12 +102,9 @@ function requireAuth(req, res, next) {
   else res.redirect('/login');
 }
 
-// Роуты
-app.get('/', (req, res) => {
-  if (req.session.userId) res.redirect('/dashboard');
-  else res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
+// ====== ОСНОВНЫЕ РОУТЫ (регистрация, проекты и т.д.) ======
+// (Остались без изменений — см. предыдущую полную версию)
+app.get('/', (req, res) => { if (req.session.userId) res.redirect('/dashboard'); else res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.get('/register', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
@@ -108,10 +123,7 @@ app.post('/register', async (req, res) => {
     writeDB(db);
     req.session.userId = user.id;
     res.json({ success: true, redirect: '/dashboard' });
-  } catch (err) {
-    console.error('Ошибка регистрации:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
+  } catch (err) { console.error('Ошибка регистрации:', err); res.status(500).json({ error: 'Ошибка сервера' }); }
 });
 
 app.post('/login', async (req, res) => {
@@ -122,10 +134,7 @@ app.post('/login', async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: 'Неверный email или пароль' });
     req.session.userId = user.id;
     res.json({ success: true, redirect: '/dashboard' });
-  } catch (err) {
-    console.error('Ошибка входа:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
+  } catch (err) { console.error('Ошибка входа:', err); res.status(500).json({ error: 'Ошибка сервера' }); }
 });
 
 app.post('/logout', (req, res) => {
@@ -138,9 +147,7 @@ app.get('/api/projects', requireAuth, (req, res) => {
     const db = readDB();
     const projects = db.projects.filter(p => p.userId === req.session.userId);
     res.json(projects);
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка загрузки проектов' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Ошибка загрузки проектов' }); }
 });
 
 app.post('/api/projects', requireAuth, projectUpload.single('model'), (req, res) => {
@@ -186,10 +193,7 @@ app.post('/api/projects', requireAuth, projectUpload.single('model'), (req, res)
       success: true,
       project: { id: project.id, name: project.name, shareUrl: project.fullShareUrl, expiresAt: project.expiresAt }
     });
-  } catch (err) {
-    console.error('Ошибка создания проекта:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
+  } catch (err) { console.error('Ошибка создания проекта:', err); res.status(500).json({ error: 'Ошибка сервера' }); }
 });
 
 app.post('/api/projects/:projectId/archive', requireAuth, (req, res) => {
@@ -200,47 +204,10 @@ app.post('/api/projects/:projectId/archive', requireAuth, (req, res) => {
     project.status = 'archived';
     writeDB(db);
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка архивации' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Ошибка архивации' }); }
 });
 
-// Портфолио
-app.get('/api/portfolio', requireAuth, (req, res) => {
-  try {
-    const db = readDB();
-    const items = db.portfolio?.filter(i => i.userId === req.session.userId) || [];
-    res.json(items);
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка загрузки портфолио' });
-  }
-});
-
-app.post('/api/portfolio', requireAuth, portfolioUpload.single('file'), (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'Файл обязателен' });
-    const db = readDB();
-    if (!db.portfolio) db.portfolio = [];
-    const item = {
-      id: uuidv4(),
-      userId: req.session.userId,
-      title: req.body.title || 'Без названия',
-      description: req.body.description || '',
-      fileName: req.file.filename,
-      originalName: req.file.originalname,
-      mimeType: req.file.mimetype,
-      createdAt: new Date().toISOString()
-    };
-    db.portfolio.push(item);
-    writeDB(db);
-    res.json({ success: true, item });
-  } catch (err) {
-    console.error('Ошибка добавления в портфолио:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
-});
-
-// Просмотр
+// Просмотр модели
 app.get('/api/view/:projectId', (req, res) => {
   try {
     const db = readDB();
@@ -260,9 +227,7 @@ app.get('/api/view/:projectId', (req, res) => {
       userName: project.userName,
       mode: project.mode
     });
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка загрузки модели' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Ошибка загрузки модели' }); }
 });
 
 // WebSocket
@@ -288,6 +253,177 @@ io.on('connection', (socket) => {
       }
     }
   });
+});
+
+// ====== НОВЫЕ РОУТЫ ДЛЯ ПОРТФОЛИО ======
+
+// Получить все карточки портфолио
+app.get('/api/portfolio', requireAuth, (req, res) => {
+  try {
+    const db = readDB();
+    const cards = db.portfolio.filter(c => c.userId === req.session.userId);
+    res.json(cards);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки портфолио' });
+  }
+});
+
+// Создать карточку
+app.post('/api/portfolio/card', requireAuth, (req, res) => {
+  try {
+    const { title, description } = req.body;
+    if (!title) return res.status(400).json({ error: 'Название обязательно' });
+    const db = readDB();
+    const card = {
+      id: uuidv4(),
+      userId: req.session.userId,
+      title,
+      description: description || '',
+      createdAt: new Date().toISOString(),
+      items: [],
+      folders: []
+    };
+    db.portfolio.push(card);
+    writeDB(db);
+    res.json({ success: true, card });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка создания карточки' });
+  }
+});
+
+// Удалить карточку
+app.delete('/api/portfolio/card/:cardId', requireAuth, (req, res) => {
+  try {
+    const db = readDB();
+    const index = db.portfolio.findIndex(c => c.id === req.params.cardId && c.userId === req.session.userId);
+    if (index === -1) return res.status(404).json({ error: 'Карточка не найдена' });
+    db.portfolio.splice(index, 1);
+    writeDB(db);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка удаления карточки' });
+  }
+});
+
+// Загрузить файл в карточку
+app.post('/api/portfolio/card/:cardId/upload', requireAuth, portfolioUpload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Файл обязателен' });
+    const db = readDB();
+    const card = db.portfolio.find(c => c.id === req.params.cardId && c.userId === req.session.userId);
+    if (!card) return res.status(404).json({ error: 'Карточка не найдена' });
+
+    const item = {
+      id: uuidv4(),
+      fileName: req.file.filename,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      type: req.file.mimetype.startsWith('image/') ? 'image' :
+             req.file.mimetype.startsWith('video/') ? 'video' : 'other'
+    };
+    card.items.push(item);
+    writeDB(db);
+    res.json({ success: true, item });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки файла' });
+  }
+});
+
+// Создать папку в карточке
+app.post('/api/portfolio/card/:cardId/folder', requireAuth, (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Название папки обязательно' });
+    const db = readDB();
+    const card = db.portfolio.find(c => c.id === req.params.cardId && c.userId === req.session.userId);
+    if (!card) return res.status(404).json({ error: 'Карточка не найдена' });
+
+    const folder = {
+      id: uuidv4(),
+      name,
+      items: []
+    };
+    card.folders.push(folder);
+    writeDB(db);
+    res.json({ success: true, folder });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка создания папки' });
+  }
+});
+
+// Загрузить файл в папку
+app.post('/api/portfolio/card/:cardId/folder/:folderId/upload', requireAuth, portfolioUpload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Файл обязателен' });
+    const db = readDB();
+    const card = db.portfolio.find(c => c.id === req.params.cardId && c.userId === req.session.userId);
+    if (!card) return res.status(404).json({ error: 'Карточка не найдена' });
+    const folder = card.folders.find(f => f.id === req.params.folderId);
+    if (!folder) return res.status(404).json({ error: 'Папка не найдена' });
+
+    const item = {
+      id: uuidv4(),
+      fileName: req.file.filename,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      type: req.file.mimetype.startsWith('image/') ? 'image' :
+             req.file.mimetype.startsWith('video/') ? 'video' : 'other'
+    };
+    folder.items.push(item);
+    writeDB(db);
+    res.json({ success: true, item });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки в папку' });
+  }
+});
+
+// Получить данные карточки (для просмотра)
+app.get('/api/portfolio/card/:cardId', (req, res) => {
+  try {
+    const db = readDB();
+    const card = db.portfolio.find(c => c.id === req.params.cardId);
+    if (!card) return res.status(404).json({ error: 'Карточка не найдена' });
+    res.json(card);
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка загрузки карточки' });
+  }
+});
+
+// Удалить файл или папку (просто для примера — можно расширить)
+app.delete('/api/portfolio/item/:itemId', requireAuth, (req, res) => {
+  try {
+    const db = readDB();
+    let found = false;
+    db.portfolio.forEach(card => {
+      if (card.userId !== req.session.userId) return;
+      card.items = card.items.filter(item => {
+        if (item.id === req.params.itemId) {
+          found = true;
+          return false;
+        }
+        return true;
+      });
+      card.folders.forEach(folder => {
+        folder.items = folder.items.filter(item => {
+          if (item.id === req.params.itemId) {
+            found = true;
+            return false;
+          }
+          return true;
+        });
+      });
+    });
+    if (!found) return res.status(404).json({ error: 'Файл не найден' });
+    writeDB(db);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка удаления файла' });
+  }
+});
+
+// Страница просмотра карточки
+app.get('/portfolio/view', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'portfolio-view.html'));
 });
 
 // Утилиты

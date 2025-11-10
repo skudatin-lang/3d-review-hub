@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Портфолио — 3D Review Hub</title>
+  <link rel="stylesheet" href="styles/dashboard.css">
+  <style>
+    .portfolio-view { padding: 20px; }
+    .card-header { margin-bottom: 20px; }
+    .folder-item, .file-item {
+      display: inline-block;
+      width: 180px;
+      padding: 10px;
+      margin: 10px;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .folder-item img, .file-item img {
+      width: 100%;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="portfolio-view">
+    <div class="card-header">
+      <h2 id="cardTitle">Загрузка...</h2>
+      <p id="cardDescription"></p>
+    </div>
+    <div id="foldersList"></div>
+    <div id="filesList"></div>
+  </div>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const cardId = urlParams.get('id');
+    
+    fetch(`/api/portfolio/card/${cardId}`)
+      .then(res => res.json())
+      .then(card => {
+        document.getElementById('cardTitle').textContent = card.title;
+        document.getElementById('cardDescription').textContent = card.description;
+        
+        // Файлы в корне
+        const filesList = document.getElementById('filesList');
+        card.items.forEach(file => {
+          const el = document.createElement('div');
+          el.className = 'file-item';
+          if (file.type === 'image') {
+            el.innerHTML = `<img src="/portfolio-files/${file.fileName}" alt="${file.originalName}">`;
+          } else {
+            el.textContent = file.originalName;
+          }
+          filesList.appendChild(el);
+        });
+        
+        // Папки
+        const foldersList = document.getElementById('foldersList');
+        card.folders.forEach(folder => {
+          const folderEl = document.createElement('div');
+          folderEl.className = 'folder-item';
+          folderEl.innerHTML = `<strong>📁 ${folder.name}</strong>`;
+          const filesInFolder = document.createElement('div');
+          folder.items.forEach(file => {
+            const fileEl = document.createElement('div');
+            if (file.type === 'image') {
+              fileEl.innerHTML = `<img src="/portfolio-files/${file.fileName}" style="width:50px;">`;
+            } else {
+              fileEl.textContent = file.originalName;
+            }
+            filesInFolder.appendChild(fileEl);
+          });
+          folderEl.appendChild(filesInFolder);
+          foldersList.appendChild(folderEl);
+        });
+      });
+  </script>
+</body>
+</html>

@@ -211,6 +211,11 @@ body {
     gap: 10px;
     flex-wrap: wrap;
 }
+.portfolio-files-count {
+    font-size: 0.9em;
+    color: #888;
+    margin-top: 10px;
+}
 /* Состояние пустого списка */
 .empty-state {
     text-align: center;
