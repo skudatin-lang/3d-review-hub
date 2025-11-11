@@ -1,11 +1,11 @@
 {
   "name": "3d-review-hub",
   "version": "1.0.0",
-  "description": "SaaS платформа для 3D моделеров",
+  "description": "SaaS платформа для 3D моделеров - модульная версия",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "nodemon server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -16,6 +16,13 @@
     "uuid": "^9.0.1",
     "socket.io": "^4.7.5",
     "multer": "^1.4.5-lts.1",
-    "backblaze-b2": "^1.6.0"
+    "backblaze-b2": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "express-validator": "^7.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
   }
 }

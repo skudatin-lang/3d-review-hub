@@ -1,152 +1,241 @@
-<!-- public/portfolio.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Портфолио — 3D Review Hub</title>
-  <link rel="stylesheet" href="styles/dashboard.css">
-  <style>
-    .upload-area {
-      border: 2px dashed #ccc;
-      padding: 30px;
-      text-align: center;
-      margin-bottom: 20px;
-      cursor: pointer;
-    }
-    .item-card {
-      background: white;
-      border-radius: 10px;
-      padding: 15px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Портфолио - 3D Review Hub</title>
+    <link rel="stylesheet" href="styles/dashboard.css">
 </head>
 <body>
-  <div class="dashboard-container">
-    <header class="dashboard-header">
-      <div class="header-brand">
-        <h1>3D Review Hub</h1>
-        <span>Моё портфолио</span>
-      </div>
-      <div class="header-actions">
-        <button id="addPortfolioBtn" class="btn btn-primary">+ Добавить файл</button>
-        <a href="/dashboard" class="btn btn-outline">← Назад</a>
-      </div>
-    </header>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="header-brand">
+                <h1>3D Review Hub</h1>
+                <span id="userGreeting">Мое портфолио</span>
+            </div>
+            <div class="header-actions">
+                <button onclick="location.href='/dashboard'" class="btn btn-outline">← Назад в дашборд</button>
+                <button id="newPortfolioItem" class="btn btn-primary">+ Добавить работу</button>
+                <button id="logoutBtn" class="btn btn-outline">Выйти</button>
+            </div>
+        </header>
 
-    <main class="content" style="padding: 20px;">
-      <div id="portfolioList"></div>
-      <div id="emptyPortfolio" style="text-align: center; padding: 40px; display: none;">
-        <h3>Портфолио пусто</h3>
-        <p>Добавьте первые работы, чтобы показывать их клиентам</p>
-      </div>
-    </main>
-  </div>
+        <main class="dashboard-main">
+            <aside class="sidebar">
+                <nav class="sidebar-nav">
+                    <a href="/dashboard" class="nav-item">📁 Мои проекты</a>
+                    <a href="/portfolio" class="nav-item active">🎨 Портфолио</a>
+                    <a href="#" class="nav-item">🗄️ Архив</a>
+                    <a href="#" class="nav-item">⚙️ Настройки</a>
+                </nav>
+            </aside>
 
-  <!-- Модальное окно добавления -->
-  <div id="uploadModal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Добавить в портфолио</h3>
-        <button class="modal-close">&times;</button>
-      </div>
-      <form id="portfolioForm" class="modal-form">
-        <div class="form-group">
-          <label>Название *</label>
-          <input type="text" id="itemName" required>
-        </div>
-        <div class="form-group">
-          <label>Описание</label>
-          <textarea id="itemDesc"></textarea>
-        </div>
-        <div class="form-group">
-          <label>Папка (опционально)</label>
-          <input type="text" id="itemFolder" placeholder="например: архитектура/дома">
-        </div>
-        <div class="form-group">
-          <label>Файл (STL/GLB/OBJ)</label>
-          <input type="file" id="itemFile" accept=".stl,.glb,.obj">
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-outline" id="cancelUpload">Отмена</button>
-          <button type="submit" class="btn btn-primary">Сохранить</button>
-        </div>
-      </form>
+            <section class="content">
+                <div class="tab-content active">
+                    <div class="content-header">
+                        <h2>Мое портфолио</h2>
+                        <p>Покажите ваши лучшие работы клиентам</p>
+                    </div>
+                    
+                    <div id="portfolioGrid" class="projects-grid">
+                        <!-- Работы будут загружаться здесь -->
+                    </div>
+                    
+                    <div id="emptyPortfolio" class="empty-state">
+                        <div class="empty-icon">🎨</div>
+                        <h3>Портфолио пустое</h3>
+                        <p>Добавьте ваши лучшие работы чтобы показать их клиентам</p>
+                        <button id="addFirstWork" class="btn btn-primary">Добавить первую работу</button>
+                    </div>
+                </div>
+            </section>
+        </main>
     </div>
-  </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', loadPortfolio);
+    <!-- Модальное окно добавления работы -->
+    <div id="portfolioModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Добавить работу в портфолио</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            
+            <form id="portfolioForm" class="modal-form">
+                <div class="form-group">
+                    <label for="itemTitle">Название работы *</label>
+                    <input type="text" id="itemTitle" name="title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="itemDescription">Описание</label>
+                    <textarea id="itemDescription" name="description" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="itemCategory">Категория</label>
+                    <select id="itemCategory" name="category">
+                        <option value="">Выберите категорию</option>
+                        <option value="architecture">Архитектура</option>
+                        <option value="product">Продуктовый дизайн</option>
+                        <option value="character">Персонажи</option>
+                        <option value="environment">Окружение</option>
+                        <option value="other">Другое</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="itemPublic" name="is_public">
+                        Сделать публичным
+                    </label>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline modal-cancel">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Добавить работу</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-    async function loadPortfolio() {
-      const res = await fetch('/api/portfolio');
-      const items = await res.json();
-      const list = document.getElementById('portfolioList');
-      const empty = document.getElementById('emptyPortfolio');
-      
-      if (items.length === 0) {
-        empty.style.display = 'block';
-        list.innerHTML = '';
-      } else {
-        empty.style.display = 'none';
-        list.innerHTML = items.map(item => `
-          <div class="item-card">
-            <h3>${item.name}</h3>
-            <p>${item.description || '—'}</p>
-            <small>📁 ${item.folder || 'корень'} | 📄 ${item.originalName}</small>
-            <br><br>
-            <button class="btn btn-outline btn-small" onclick="openViewer('${item.file}')">
-              Открыть модель
-            </button>
-          </div>
-        `).join('');
-      }
-    }
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadPortfolio();
+            setupEventListeners();
+        });
 
-    function openViewer(filename) {
-      const url = `/view-portfolio/${filename}`;
-      alert('Функция просмотра портфолио — в разработке. Пока можно только загружать.');
-      // В будущем: создать /view-portfolio/:file — аналог viewer, но без проекта
-    }
+        async function loadPortfolio() {
+            try {
+                const response = await fetch('/api/portfolio');
+                if (!response.ok) throw new Error('Ошибка загрузки');
+                const items = await response.json();
+                displayPortfolio(items);
+            } catch (error) {
+                console.error('Ошибка загрузки портфолио:', error);
+            }
+        }
 
-    // Модальное окно
-    document.getElementById('addPortfolioBtn').onclick = () => {
-      document.getElementById('uploadModal').style.display = 'flex';
-    };
-    document.querySelector('.modal-close').onclick = () => {
-      document.getElementById('uploadModal').style.display = 'none';
-    };
-    document.getElementById('cancelUpload').onclick = () => {
-      document.getElementById('uploadModal').style.display = 'none';
-    };
+        function displayPortfolio(items) {
+            const grid = document.getElementById('portfolioGrid');
+            const empty = document.getElementById('emptyPortfolio');
+            
+            if (items.length === 0) {
+                grid.innerHTML = '';
+                empty.style.display = 'block';
+            } else {
+                empty.style.display = 'none';
+                grid.innerHTML = items.map(item => `
+                    <div class="project-card">
+                        <div class="project-header">
+                            <h3>${item.title}</h3>
+                            <span class="project-status ${item.is_public ? 'active' : 'archived'}">
+                                ${item.is_public ? 'Публичное' : 'Приватное'}
+                            </span>
+                        </div>
+                        
+                        <div class="project-info">
+                            <p>${item.description || 'Без описания'}</p>
+                            <div class="project-meta">
+                                <span>Категория: ${item.category || 'Не указана'}</span>
+                                <span>Добавлено: ${new Date(item.created_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="project-actions">
+                            <button class="btn btn-outline btn-small" onclick="editItem('${item.id}')">
+                                Редактировать
+                            </button>
+                            <button class="btn btn-outline btn-small" onclick="deleteItem('${item.id}')">
+                                Удалить
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
 
-    // Сохранение
-    document.getElementById('portfolioForm').onsubmit = async (e) => {
-      e.preventDefault();
-      const formData = new FormData();
-      formData.append('name', document.getElementById('itemName').value);
-      formData.append('description', document.getElementById('itemDesc').value);
-      formData.append('folder', document.getElementById('itemFolder').value);
-      const fileInput = document.getElementById('itemFile');
-      if (fileInput.files[0]) {
-        formData.append('file', fileInput.files[0]);
-      }
+        function setupEventListeners() {
+            const modal = document.getElementById('portfolioModal');
+            const form = document.getElementById('portfolioForm');
+            
+            document.getElementById('newPortfolioItem').addEventListener('click', () => modal.style.display = 'flex');
+            document.getElementById('addFirstWork').addEventListener('click', () => modal.style.display = 'flex');
+            
+            document.querySelector('.modal-close').addEventListener('click', () => modal.style.display = 'none');
+            document.querySelector('.modal-cancel').addEventListener('click', () => modal.style.display = 'none');
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.style.display = 'none';
+            });
 
-      const res = await fetch('/api/portfolio', {
-        method: 'POST',
-        body: formData
-      });
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData);
+                data.is_public = document.getElementById('itemPublic').checked;
 
-      const result = await res.json();
-      if (result.success) {
-        document.getElementById('uploadModal').style.display = 'none';
-        document.getElementById('portfolioForm').reset();
-        loadPortfolio();
-      } else {
-        alert('Ошибка: ' + result.error);
-      }
-    };
-  </script>
+                const submitBtn = form.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Добавление...';
+
+                try {
+                    const response = await fetch('/api/portfolio', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        modal.style.display = 'none';
+                        form.reset();
+                        await loadPortfolio();
+                    } else {
+                        alert('Ошибка: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Ошибка сети: ' + error.message);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Добавить работу';
+                }
+            });
+
+            document.getElementById('logoutBtn').addEventListener('click', async () => {
+                try {
+                    const response = await fetch('/logout', { method: 'POST' });
+                    const result = await response.json();
+                    if (result.success) {
+                        window.location.href = result.redirect;
+                    }
+                } catch (error) {
+                    console.error('Ошибка выхода:', error);
+                }
+            });
+        }
+
+        async function deleteItem(itemId) {
+            if (confirm('Удалить эту работу из портфолио?')) {
+                try {
+                    const response = await fetch(`/api/portfolio/${itemId}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        await loadPortfolio();
+                    } else {
+                        alert('Ошибка удаления');
+                    }
+                } catch (error) {
+                    alert('Ошибка сети');
+                }
+            }
+        }
+
+        function editItem(itemId) {
+            // Функция для редактирования (можно добавить позже)
+            alert('Редактирование будет добавлено в следующем обновлении');
+        }
+    </script>
 </body>
 </html>

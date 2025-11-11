@@ -1,0 +1,48 @@
+{
+  "users": [
+    {
+      "id": "eb8027b5-4bee-4d78-b2ea-4c4e1c6c4b1b",
+      "email": "skudatin@gmail.com",
+      "password": "$2a$10$MsIR64X/Y4yu3500E.hRIuKvqfVIetjo8/F8/eTOoDpmcYZvIzcRS",
+      "name": "Константин",
+      "createdAt": "2025-11-04T10:46:01.423Z",
+      "plan": "free"
+    }
+  ],
+  "projects": [
+    {
+      "id": "d13a8b7c-9e85-4f6a-92f5-ba0c3358a374",
+      "userId": "eb8027b5-4bee-4d78-b2ea-4c4e1c6c4b1b",
+      "userName": "Константин",
+      "name": "по фото",
+      "description": "модель",
+      "modelFile": "cdedae92-6a8e-414b-b1ab-b5f4dc0a4949_default.stl",
+      "modelOriginalName": "default.stl",
+      "shareUrl": "/view/d13a8b7c-9e85-4f6a-92f5-ba0c3358a374",
+      "fullShareUrl": "http://localhost:3000/view/d13a8b7c-9e85-4f6a-92f5-ba0c3358a374",
+      "password": "",
+      "mode": "individual",
+      "status": "active",
+      "createdAt": "2025-11-04T10:47:20.317Z",
+      "expiresAt": "2025-11-05T10:47:20.317Z",
+      "screenshots": []
+    },
+    {
+      "id": "d5cb8f86-5c55-4198-9a42-633145c2fdd0",
+      "userId": "eb8027b5-4bee-4d78-b2ea-4c4e1c6c4b1b",
+      "userName": "Константин",
+      "name": "мото",
+      "description": "",
+      "modelFile": "a6e73b82-739a-4eb9-a6c3-4d9768ba0980_default.stl",
+      "modelOriginalName": "default.stl",
+      "shareUrl": "/view/d5cb8f86-5c55-4198-9a42-633145c2fdd0",
+      "fullShareUrl": "http://localhost:3000/view/d5cb8f86-5c55-4198-9a42-633145c2fdd0",
+      "password": "",
+      "mode": "individual",
+      "status": "active",
+      "createdAt": "2025-11-04T10:49:47.395Z",
+      "expiresAt": "2025-11-05T10:49:47.395Z",
+      "screenshots": []
+    }
+  ]
+}
