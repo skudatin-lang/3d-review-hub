@@ -1,6 +1,8 @@
-// modules/shared.js
+// modules/shared.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
 const { Client } = require('pg');
 const B2 = require('backblaze-b2');
+const fs = require('fs');
+const path = require('path');
 
 class SharedModule {
     constructor() {
@@ -9,12 +11,26 @@ class SharedModule {
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         });
         
-        this.b2 = new B2({
-            applicationKeyId: process.env.BACKBLAZE_KEY_ID,
-            applicationKey: process.env.BACKBLAZE_APPLICATION_KEY
-        });
+        // Инициализация B2 только если есть ключи
+        if (process.env.BACKBLAZE_KEY_ID && process.env.BACKBLAZE_APPLICATION_KEY) {
+            this.b2 = new B2({
+                applicationKeyId: process.env.BACKBLAZE_KEY_ID,
+                applicationKey: process.env.BACKBLAZE_APPLICATION_KEY
+            });
+            console.log('✅ Backblaze B2 инициализирован');
+        } else {
+            console.log('⚠️  Backblaze B2 не настроен, используем локальное хранилище');
+            this.b2 = null;
+        }
         
         this.b2Authorized = false;
+        
+        // Создаем папку для локального хранения
+        this.uploadsDir = path.join(__dirname, '..', 'uploads');
+        if (!fs.existsSync(this.uploadsDir)) {
+            fs.mkdirSync(this.uploadsDir, { recursive: true });
+            console.log('✅ Папка uploads создана');
+        }
     }
 
     async connectDB() {
@@ -28,6 +44,10 @@ class SharedModule {
     }
 
     async authorizeB2() {
+        if (!this.b2) {
+            throw new Error('Backblaze B2 не настроен');
+        }
+        
         if (!this.b2Authorized) {
             await this.b2.authorize();
             this.b2Authorized = true;
@@ -36,20 +56,39 @@ class SharedModule {
     }
 
     async uploadToB2(fileBuffer, filename) {
-        await this.authorizeB2();
-        const response = await this.b2.getUploadUrl({ 
-            bucketId: process.env.BACKBLAZE_BUCKET_ID 
-        });
+        // Если B2 не настроен, сохраняем локально
+        if (!this.b2) {
+            return this.saveFileLocally(fileBuffer, filename);
+        }
+
+        try {
+            await this.authorizeB2();
+            const response = await this.b2.getUploadUrl({ 
+                bucketId: process.env.BACKBLAZE_BUCKET_ID 
+            });
+            
+            const result = await this.b2.uploadFile({
+                uploadUrl: response.data.uploadUrl,
+                uploadAuthToken: response.data.authorizationToken,
+                fileName: filename,
+                data: fileBuffer,
+                contentType: 'application/octet-stream'
+            });
+            
+            console.log('✅ Файл загружен в Backblaze B2:', filename);
+            return `https://f004.backblazeb2.com/file/${process.env.BACKBLAZE_BUCKET_NAME}/${filename}`;
+        } catch (error) {
+            console.error('❌ Ошибка загрузки в B2, сохраняем локально:', error.message);
+            return this.saveFileLocally(fileBuffer, filename);
+        }
+    }
+
+    async saveFileLocally(fileBuffer, filename) {
+        const filePath = path.join(this.uploadsDir, filename);
+        fs.writeFileSync(filePath, fileBuffer);
         
-        const result = await this.b2.uploadFile({
-            uploadUrl: response.data.uploadUrl,
-            uploadAuthToken: response.data.authorizationToken,
-            fileName: filename,
-            fileBuffer: fileBuffer,
-            contentType: 'application/octet-stream'
-        });
-        
-        return `https://f004.backblazeb2.com/file/${process.env.BACKBLAZE_BUCKET_NAME}/${encodeURIComponent(filename)}`;
+        console.log('✅ Файл сохранен локально:', filename);
+        return `/uploads/${filename}`;
     }
 
     async initializeDatabase() {
@@ -93,7 +132,7 @@ class SharedModule {
                 );
             `);
 
-            // Таблица портфолио (для нового модуля)
+            // Таблица портфолио
             await this.db.query(`
                 CREATE TABLE IF NOT EXISTS portfolio_items (
                     id TEXT PRIMARY KEY,

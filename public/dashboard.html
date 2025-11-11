@@ -1,5 +1,3 @@
-dashboard.html
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -27,6 +25,7 @@ dashboard.html
             <aside class="sidebar">
                 <nav class="sidebar-nav">
                     <a href="#" class="nav-item active" data-tab="projects">📁 Мои проекты</a>
+                    <a href="/portfolio" class="nav-item">🎨 Портфолио</a>
                     <a href="#" class="nav-item" data-tab="archive">🗄️ Архив</a>
                     <a href="#" class="nav-item" data-tab="settings">⚙️ Настройки</a>
                 </nav>
@@ -162,15 +161,34 @@ dashboard.html
     </div>
 
     <script>
-        // Загрузка проектов при открытии
+        // Загрузка пользователя и проектов при открытии
         document.addEventListener('DOMContentLoaded', async () => {
+            await loadUserData();
             await loadProjects();
             setupEventListeners();
         });
 
+        // Загрузка данных пользователя
+        async function loadUserData() {
+            try {
+                const response = await fetch('/api/user');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        document.getElementById('userGreeting').textContent = `Привет, ${data.user.name}!`;
+                        document.getElementById('userPlan').textContent = data.user.plan;
+                        document.getElementById('currentPlan').textContent = data.user.plan;
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных пользователя:', error);
+            }
+        }
+
         async function loadProjects() {
             try {
                 const response = await fetch('/api/projects');
+                if (!response.ok) throw new Error('Ошибка загрузки проектов');
                 const projects = await response.json();
                 
                 displayProjects(projects);
@@ -178,6 +196,14 @@ dashboard.html
                 
             } catch (error) {
                 console.error('Ошибка загрузки проектов:', error);
+                // Показываем сообщение об ошибке
+                document.getElementById('projectsList').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <h3>Ошибка загрузки</h3>
+                        <p>Не удалось загрузить проекты. Попробуйте обновить страницу.</p>
+                    </div>
+                `;
             }
         }
 
@@ -205,13 +231,13 @@ dashboard.html
                         <div class="project-info">
                             <p>${project.description || 'Без описания'}</p>
                             <div class="project-meta">
-                                <span>Создан: ${new Date(project.createdAt).toLocaleDateString()}</span>
-                                <span>Истекает: ${new Date(project.expiresAt).toLocaleDateString()}</span>
+                                <span>Создан: ${new Date(project.created_at).toLocaleDateString()}</span>
+                                <span>Истекает: ${new Date(project.expires_at).toLocaleDateString()}</span>
                             </div>
                         </div>
                         
                         <div class="project-actions">
-                            <button class="btn btn-outline btn-small copy-link" data-url="${project.fullShareUrl}">
+                            <button class="btn btn-outline btn-small copy-link" data-url="${project.share_url}">
                                 Копировать ссылку
                             </button>
                             <button class="btn btn-outline btn-small open-viewer" data-project-id="${project.id}">
@@ -235,8 +261,8 @@ dashboard.html
                     <div class="project-info">
                         <p>${project.description || 'Без описания'}</p>
                         <div class="project-meta">
-                            <span>Создан: ${new Date(project.createdAt).toLocaleDateString()}</span>
-                            <span>Завершен: ${new Date(project.expiresAt).toLocaleDateString()}</span>
+                            <span>Создан: ${new Date(project.created_at).toLocaleDateString()}</span>
+                            <span>Завершен: ${new Date(project.expires_at).toLocaleDateString()}</span>
                         </div>
                     </div>
                 </div>
@@ -261,6 +287,8 @@ dashboard.html
             // Навигация по вкладкам
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.addEventListener('click', (e) => {
+                    if (item.href) return; // Если есть ссылка - переходим
+                    
                     e.preventDefault();
                     const tab = item.dataset.tab;
                     
@@ -345,7 +373,7 @@ dashboard.html
             // Копирование ссылки
             document.addEventListener('click', async (e) => {
                 if (e.target.classList.contains('copy-link')) {
-                    const url = e.target.dataset.url;
+                    const url = window.location.origin + e.target.dataset.url;
                     await navigator.clipboard.writeText(url);
                     alert('Ссылка скопирована в буфер обмена!');
                 }
@@ -384,17 +412,26 @@ dashboard.html
                 }
             });
 
-            // Выход
+            // Выход - ИСПРАВЛЕННАЯ ВЕРСИЯ
             document.getElementById('logoutBtn').addEventListener('click', async () => {
                 try {
-                    const response = await fetch('/logout', { method: 'POST' });
+                    const response = await fetch('/api/logout', { 
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
                     const result = await response.json();
                     
                     if (result.success) {
                         window.location.href = result.redirect;
+                    } else {
+                        alert('Ошибка выхода: ' + result.error);
                     }
                 } catch (error) {
                     console.error('Ошибка выхода:', error);
+                    // Принудительный редирект при ошибке
+                    window.location.href = '/';
                 }
             });
         }
