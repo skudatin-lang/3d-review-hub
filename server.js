@@ -1,4 +1,4 @@
-// server.js — для PostgreSQL + Backblaze B2 + Render
+// server.js — версия для Render + PostgreSQL + Backblaze B2
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -8,8 +8,8 @@ const session = require('express-session');
 const http = require('http');
 const socketIo = require('socket.io');
 const { Client } = require('pg');
-const B2 = require('backblaze-b2');
 const PgSession = require('connect-pg-simple')(session);
+const B2 = require('backblaze-b2');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,14 +17,14 @@ const io = socketIo(server);
 
 const PORT = process.env.PORT || 3000;
 
-// === PostgreSQL ===
+// === Подключение к PostgreSQL ===
 const client = new Client({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 client.connect().catch(err => {
-  console.error('❌ Ошибка подключения к PostgreSQL:', err);
+  console.error('❌ Не удалось подключиться к PostgreSQL:', err.message);
   process.exit(1);
 });
 
@@ -52,7 +52,7 @@ async function uploadToB2(fileBuffer, filename) {
     uploadUrl,
     uploadAuthToken: uploadAuth,
     fileName: filename,
-    data: fileBuffer,
+    fileBuffer,
     contentType: 'application/octet-stream'
   });
   return `https://f004.backblazeb2.com/file/${process.env.BACKBLAZE_BUCKET_NAME}/${encodeURIComponent(filename)}`;
@@ -61,13 +61,13 @@ async function uploadToB2(fileBuffer, filename) {
 // === Сессии в PostgreSQL ===
 app.use(session({
   store: new PgSession({ pool: client, tableName: 'user_sessions' }),
-  secret: process.env.SESSION_SECRET || '3d-review-hub-secret-change-me',
+  secret: process.env.SESSION_SECRET || '3d-review-hub-fallback-secret',
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 24 * 60 * 60 * 1000, secure: false }
 }));
 
-// === Multer в память (для загрузки в B2) ===
+// === Multer: загрузка в память для отправки в B2 ===
 const upload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
@@ -87,7 +87,7 @@ function requireAuth(req, res, next) {
   res.redirect('/login');
 }
 
-// === Роуты ===
+// === Роуты: публичные страницы ===
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -102,10 +102,6 @@ app.get('/register', (req, res) => {
 
 app.get('/dashboard', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
-
-app.get('/portfolio', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'portfolio.html'));
 });
 
 app.get('/view/:projectId', (req, res) => {
@@ -125,7 +121,7 @@ app.post('/register', async (req, res) => {
     req.session.userId = id;
     res.json({ success: true, redirect: '/dashboard' });
   } catch (e) {
-    if (e.code === '23505') { // unique_violation
+    if (e.code === '23505') {
       res.status(400).json({ error: 'Email уже занят' });
     } else {
       console.error(e);
@@ -158,7 +154,7 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// === Проекты ===
+// === API: проекты ===
 app.get('/api/projects', requireAuth, async (req, res) => {
   try {
     const result = await client.query(
@@ -167,7 +163,8 @@ app.get('/api/projects', requireAuth, async (req, res) => {
     );
     res.json(result.rows);
   } catch (e) {
-    res.status(500).json({ error: 'Ошибка загрузки проектов' });
+    console.error('Ошибка загрузки проектов:', e.message);
+    res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 
@@ -177,13 +174,12 @@ app.post('/api/projects', requireAuth, upload.single('model'), async (req, res) 
     const { name, description, expiresIn = '24', password = '', mode = 'individual' } = req.body;
     if (!name) return res.status(400).json({ error: 'Название обязательно' });
 
-    // Проверка лимита
     const activeCount = await client.query(
       'SELECT COUNT(*) FROM projects WHERE user_id = $1 AND status = $2',
       [req.session.userId, 'active']
     );
     if (activeCount.rows[0].count >= 3) {
-      return res.status(400).json({ error: 'Лимит: 3 проекта на Free' });
+      return res.status(400).json({ error: 'Лимит: 3 активных проекта на Free' });
     }
 
     const id = uuidv4();
@@ -230,7 +226,7 @@ app.post('/api/projects/:projectId/archive', requireAuth, async (req, res) => {
   }
 });
 
-// === Просмотр проекта ===
+// === API: просмотр проекта ===
 app.get('/api/view/:projectId', async (req, res) => {
   try {
     const result = await client.query('SELECT * FROM projects WHERE id = $1', [req.params.projectId]);
@@ -260,9 +256,6 @@ app.get('/api/view/:projectId', async (req, res) => {
   }
 });
 
-// === Портфолио — аналогично, но без срока действия (опционально) ===
-// (можно реализовать отдельно, если нужно)
-
 // === WebSocket ===
 io.on('connection', (socket) => {
   socket.on('join-room', (id) => {
@@ -275,11 +268,68 @@ io.on('connection', (socket) => {
   socket.on('annotation-add', (data) => {
     socket.to(data.projectId).emit('annotation-added', { userId: socket.id, annotation: data.annotation });
   });
+  socket.on('disconnect', () => {
+    // Nothing to clean manually — rooms are virtual
+  });
 });
 
-// === Запуск ===
-server.listen(PORT, () => {
-  console.log(`🚀 3D Review Hub запущен на порту ${PORT}`);
-  console.log(`🗄️  Используется PostgreSQL`);
-  console.log(`☁️  Файлы в Backblaze B2`);
-});
+// === Автоматическое создание таблиц при запуске ===
+async function initializeDatabase() {
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        name TEXT NOT NULL,
+        plan TEXT DEFAULT 'free',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        description TEXT,
+        model_url TEXT NOT NULL,
+        original_name TEXT,
+        share_url TEXT,
+        password TEXT,
+        mode TEXT DEFAULT 'individual',
+        status TEXT DEFAULT 'active',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        expires_at TIMESTAMPTZ NOT NULL
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        sid VARCHAR NOT NULL COLLATE "default",
+        sess JSON NOT NULL,
+        expire TIMESTAMPTZ NOT NULL
+      );
+    `);
+    await client.query(`
+      ALTER TABLE user_sessions 
+      ADD CONSTRAINT user_sessions_pkey 
+      PRIMARY KEY (sid) 
+      NOT DEFERRABLE INITIALLY IMMEDIATE;
+    `);
+    console.log('✅ Таблицы в PostgreSQL успешно созданы или уже существуют');
+  } catch (error) {
+    console.error('❌ Ошибка инициализации БД:', error.message);
+    process.exit(1);
+  }
+}
+
+// === Запуск сервера ===
+async function startServer() {
+  await initializeDatabase();
+  server.listen(PORT, () => {
+    console.log(`🚀 3D Review Hub запущен на порту ${PORT}`);
+    console.log(`🗄️ PostgreSQL подключён`);
+    console.log(`☁️ Файлы хранятся в Backblaze B2`);
+  });
+}
+
+startServer();
