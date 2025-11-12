@@ -1,4 +1,4 @@
-// modules/shared.js - ПРОФЕССИОНАЛЬНАЯ ВЕРСИЯ
+// modules/shared.js
 const { Client } = require('pg');
 const B2 = require('backblaze-b2');
 const fs = require('fs');
@@ -8,17 +8,16 @@ class SharedModule {
     constructor() {
         this.db = new Client({
             connectionString: process.env.DATABASE_URL,
-            ssl: { rejectUnauthorized: false }
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         });
         
-        // Backblaze B2 - ОБЯЗАТЕЛЬНО
+        // Backblaze B2
         this.b2 = new B2({
             applicationKeyId: process.env.BACKBLAZE_KEY_ID,
             applicationKey: process.env.BACKBLAZE_APPLICATION_KEY
         });
         
         this.b2Authorized = false;
-        console.log('✅ Backblaze B2 инициализирован');
     }
 
     async connectDB() {
@@ -31,16 +30,44 @@ class SharedModule {
         }
     }
 
+    async checkDatabaseConnection() {
+        try {
+            const result = await this.db.query('SELECT NOW() as time');
+            console.log('✅ Проверка подключения к БД:', result.rows[0].time);
+            return true;
+        } catch (error) {
+            console.error('❌ Ошибка подключения к БД:', error.message);
+            return false;
+        }
+    }
+
+    async checkTablesExist() {
+        try {
+            const tables = ['users', 'projects', 'user_sessions', 'portfolio_items'];
+            
+            for (const table of tables) {
+                const result = await this.db.query(
+                    `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)`,
+                    [table]
+                );
+                console.log(`📊 Таблица ${table}: ${result.rows[0].exists ? '✅' : '❌'}`);
+            }
+            return true;
+        } catch (error) {
+            console.error('❌ Ошибка проверки таблиц:', error.message);
+            return false;
+        }
+    }
+
     async authorizeB2() {
         if (!this.b2Authorized) {
             try {
-                const response = await this.b2.authorize();
-                console.log('✅ Backblaze B2 авторизован');
+                await this.b2.authorize();
                 this.b2Authorized = true;
+                console.log('✅ Backblaze B2 авторизован');
             } catch (error) {
                 console.error('❌ Ошибка авторизации Backblaze B2:');
                 console.error('Проверьте BACKBLAZE_KEY_ID и BACKBLAZE_APPLICATION_KEY в .env');
-                console.error('Ошибка:', error.message);
                 throw error;
             }
         }
@@ -50,14 +77,12 @@ class SharedModule {
         try {
             await this.authorizeB2();
             
-            // Получаем URL для загрузки
             const uploadUrlResponse = await this.b2.getUploadUrl({
                 bucketId: process.env.BACKBLAZE_BUCKET_ID
             });
             
             console.log('📤 Загрузка файла в Backblaze B2:', filename);
             
-            // Загружаем файл
             const uploadResponse = await this.b2.uploadFile({
                 uploadUrl: uploadUrlResponse.data.uploadUrl,
                 uploadAuthToken: uploadUrlResponse.data.authorizationToken,
@@ -66,7 +91,6 @@ class SharedModule {
                 contentType: 'application/octet-stream'
             });
             
-            // Возвращаем публичный URL
             const publicUrl = `https://f004.backblazeb2.com/file/${process.env.BACKBLAZE_BUCKET_NAME}/${filename}`;
             console.log('✅ Файл загружен в Backblaze B2:', publicUrl);
             
@@ -74,7 +98,6 @@ class SharedModule {
             
         } catch (error) {
             console.error('❌ Ошибка загрузки в Backblaze B2:');
-            console.error('Проверьте BACKBLAZE_BUCKET_ID и BACKBLAZE_BUCKET_NAME');
             console.error('Ошибка:', error.response?.data || error.message);
             throw error;
         }

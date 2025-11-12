@@ -3,12 +3,11 @@ const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const shared = require('./shared');
 
-// Настройка multer для загрузки в память
 const upload = multer({
     storage: multer.memoryStorage(),
     fileFilter: (req, file, cb) => {
         const ext = file.originalname.toLowerCase().split('.').pop();
-        if (['.stl', '.glb', '.obj'].includes('.' + ext)) {
+        if (['stl', 'glb', 'obj'].includes(ext)) {
             cb(null, true);
         } else {
             cb(new Error('Только STL, GLB, OBJ файлы разрешены'), false);
@@ -39,15 +38,10 @@ class ProjectsModule {
         try {
             const { name, description, expiresIn = '24', password = '', mode = 'individual' } = projectData;
 
-            if (!name) {
-                throw new Error('Название обязательно');
+            if (!name || !file) {
+                throw new Error('Название и файл обязательны');
             }
 
-            if (!file) {
-                throw new Error('Файл модели обязателен');
-            }
-
-            // Проверка лимита проектов
             const activeCount = await shared.db.query(
                 'SELECT COUNT(*) FROM projects WHERE user_id = $1 AND status = $2',
                 [userId, 'active']
@@ -57,29 +51,23 @@ class ProjectsModule {
                 throw new Error('Лимит: 3 активных проекта на Free тарифе');
             }
 
-            const id = uuidv4();
+            const projectId = uuidv4();
             const filename = `${uuidv4()}_${file.originalname}`;
             const fileUrl = await shared.uploadToB2(file.buffer, filename);
-            
             const expiresAt = new Date(Date.now() + parseInt(expiresIn) * 60 * 60 * 1000);
+            const shareUrl = `/view/${projectId}`;
 
             await shared.db.query(`
-                INSERT INTO projects(
-                    id, user_id, name, description, model_url, original_name,
-                    share_url, password, mode, status, created_at, expires_at
-                ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11)
-            `, [
-                id, userId, name, description || '', fileUrl, 
-                file.originalname, `/view/${id}`, password, mode, 
-                'active', expiresAt.toISOString()
-            ]);
+                INSERT INTO projects (id, user_id, name, description, model_url, original_name, share_url, password, mode, status, expires_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            `, [projectId, userId, name, description || '', fileUrl, file.originalname, shareUrl, password, mode, 'active', expiresAt]);
 
-            const fullShareUrl = `${process.env.NODE_ENV === 'production' ? 'https://' : 'http://'}${process.env.HOST || 'localhost:3000'}/view/${id}`;
+            const fullShareUrl = `${process.env.NODE_ENV === 'production' ? 'https://' : 'http://'}${process.env.RENDER_EXTERNAL_HOSTNAME || 'localhost:3000'}${shareUrl}`;
 
             return {
                 success: true,
                 project: { 
-                    id, 
+                    id: projectId, 
                     name, 
                     shareUrl: fullShareUrl, 
                     expiresAt 
@@ -118,23 +106,19 @@ class ProjectsModule {
 
             const project = result.rows[0];
 
-            // Проверка статуса
             if (project.status !== 'active') {
                 throw new Error('Проект недоступен');
             }
 
-            // Проверка срока действия
             if (new Date() > new Date(project.expires_at)) {
                 await this.archiveProject(project.user_id, projectId);
                 throw new Error('Срок действия истёк');
             }
 
-            // Проверка пароля
             if (project.password && project.password !== password) {
                 throw new Error('Неверный пароль');
             }
 
-            // Получаем информацию о пользователе
             const userResult = await shared.db.query(
                 'SELECT name FROM users WHERE id = $1',
                 [project.user_id]

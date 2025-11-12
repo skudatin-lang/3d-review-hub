@@ -18,17 +18,15 @@ class PortfolioModule {
 
     async addPortfolioItem(userId, itemData) {
         try {
-            const { title, description, image_url, model_url, category, tags, is_public } = itemData;
-            const id = uuidv4();
+            const { title, description, category, is_public } = itemData;
+            const itemId = uuidv4();
 
             await shared.db.query(`
-                INSERT INTO portfolio_items(
-                    id, user_id, title, description, image_url, model_url, 
-                    category, tags, is_public, created_at
-                ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
-            `, [id, userId, title, description, image_url, model_url, category, tags, is_public || false]);
+                INSERT INTO portfolio_items (id, user_id, title, description, category, is_public)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            `, [itemId, userId, title, description || '', category || '', is_public || false]);
 
-            return { success: true, itemId: id };
+            return { success: true, itemId };
         } catch (error) {
             console.error('Ошибка добавления в портфолио:', error);
             return { success: false, error: error.message };

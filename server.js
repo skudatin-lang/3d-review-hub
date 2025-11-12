@@ -1,4 +1,4 @@
-// server.js - ПРОФЕССИОНАЛЬНАЯ ВЕРСИЯ
+// server.js
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
@@ -24,34 +24,20 @@ const PORT = process.env.PORT || 3000;
 
 // ==================== НАСТРОЙКИ БЕЗОПАСНОСТИ ====================
 
-// Лимит запросов
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 минут
-    max: 100 // максимум 100 запросов с одного IP
+    windowMs: 15 * 60 * 1000,
+    max: 100
 });
 app.use(limiter);
 
-// Заголовки безопасности
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-            imgSrc: ["'self'", "data:", "https:", "blob:"],
-            connectSrc: ["'self'", "ws:", "wss:"],
-            fontSrc: ["'self'", "https://cdn.jsdelivr.net"]
-        }
-    },
-    crossOriginEmbedderPolicy: false
+    contentSecurityPolicy: false
 }));
 
 app.use(compression());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(express.static('public', { 
-    maxAge: process.env.NODE_ENV === 'production' ? '1d' : '0'
-}));
+app.use(express.static('public'));
 
 // Сессии
 app.use(session({
@@ -64,8 +50,8 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
-        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+        secure: false,
         httpOnly: true,
         sameSite: 'lax'
     }
@@ -73,14 +59,11 @@ app.use(session({
 
 // ==================== MIDDLEWARE ====================
 
-// Логирование
 app.use((req, res, next) => {
-    const timestamp = new Date().toISOString();
-    console.log(`${timestamp} ${req.method} ${req.url} - ${req.ip}`);
+    console.log(`${new Date().toISOString()} ${req.method} ${req.url}`);
     next();
 });
 
-// Проверка авторизации
 function requireAuth(req, res, next) {
     if (req.session.userId) {
         return next();
@@ -91,13 +74,6 @@ function requireAuth(req, res, next) {
     } else {
         return res.redirect('/login');
     }
-}
-
-// Проверка API ключа (для будущего API)
-function requireApiKey(req, res, next) {
-    const apiKey = req.headers['x-api-key'];
-    // Здесь можно добавить проверку API ключа
-    next();
 }
 
 // ==================== РОУТЫ СТРАНИЦ ====================
@@ -133,57 +109,95 @@ app.get('/view/:projectId', (req, res) => {
 // Аутентификация
 app.post('/api/register', async (req, res) => {
     try {
+        console.log('📝 Запрос на регистрацию:', req.body);
+        
         const result = await auth.register(req.body);
+        
         if (result.success) {
             req.session.userId = result.userId;
-            res.json({ success: true, redirect: '/dashboard' });
+            req.session.save((err) => {
+                if (err) {
+                    console.error('❌ Ошибка сохранения сессии:', err);
+                    return res.status(500).json({ error: 'Ошибка создания сессии' });
+                }
+                
+                console.log('✅ Сессия создана для пользователя:', result.userId);
+                res.json({ 
+                    success: true, 
+                    redirect: '/dashboard',
+                    user: result.user 
+                });
+            });
         } else {
+            console.log('❌ Ошибка регистрации:', result.error);
             res.status(400).json({ error: result.error });
         }
+        
     } catch (error) {
-        console.error('Ошибка регистрации:', error);
-        res.status(500).json({ error: 'Ошибка сервера при регистрации' });
+        console.error('❌ Серверная ошибка при регистрации:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
 
 app.post('/api/login', async (req, res) => {
     try {
+        console.log('🔐 Запрос на вход:', req.body.email);
+        
         const result = await auth.login(req.body);
+        
         if (result.success) {
             req.session.userId = result.user.id;
-            res.json({ 
-                success: true, 
-                redirect: '/dashboard',
-                user: result.user 
+            req.session.save((err) => {
+                if (err) {
+                    console.error('❌ Ошибка сохранения сессии:', err);
+                    return res.status(500).json({ error: 'Ошибка создания сессии' });
+                }
+                
+                console.log('✅ Успешный вход, сессия создана:', result.user.id);
+                res.json({ 
+                    success: true, 
+                    redirect: '/dashboard',
+                    user: result.user 
+                });
             });
         } else {
+            console.log('❌ Ошибка входа:', result.error);
             res.status(400).json({ error: result.error });
         }
+        
     } catch (error) {
-        console.error('Ошибка входа:', error);
-        res.status(500).json({ error: 'Ошибка сервера при входе' });
+        console.error('❌ Серверная ошибка при входе:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
 
 app.post('/api/logout', (req, res) => {
+    console.log('🚪 Запрос на выход пользователя:', req.session.userId);
+    
     req.session.destroy((err) => {
         if (err) {
+            console.error('❌ Ошибка выхода:', err);
             return res.status(500).json({ error: 'Ошибка выхода' });
         }
+        
+        console.log('✅ Сессия уничтожена');
         res.json({ success: true, redirect: '/' });
     });
 });
 
 app.get('/api/user', requireAuth, async (req, res) => {
     try {
+        console.log('👤 Запрос данных пользователя:', req.session.userId);
+        
         const user = await auth.getUserById(req.session.userId);
         if (user) {
             res.json({ success: true, user });
         } else {
+            console.log('❌ Пользователь не найден в БД');
             res.status(404).json({ error: 'Пользователь не найден' });
         }
     } catch (error) {
-        console.error('Ошибка получения пользователя:', error);
+        console.error('❌ Ошибка получения пользователя:', error);
         res.status(500).json({ error: 'Ошибка получения данных пользователя' });
     }
 });
@@ -201,6 +215,7 @@ app.get('/api/projects', requireAuth, async (req, res) => {
 
 app.post('/api/projects', requireAuth, projects.getUploadMiddleware(), async (req, res) => {
     try {
+        console.log('Создание проекта, файл:', req.file);
         const result = await projects.createProject(req.session.userId, req.body, req.file);
         if (result.success) {
             res.json(result);
@@ -227,22 +242,11 @@ app.post('/api/projects/:projectId/archive', requireAuth, async (req, res) => {
     }
 });
 
-app.get('/api/projects/stats', requireAuth, async (req, res) => {
-    try {
-        const stats = await projects.getUserStats(req.session.userId);
-        res.json({ success: true, stats });
-    } catch (error) {
-        console.error('Ошибка получения статистики:', error);
-        res.status(500).json({ error: 'Ошибка получения статистики' });
-    }
-});
-
 // Просмотр проекта
 app.get('/api/view/:projectId', async (req, res) => {
     try {
         const project = await projects.getProjectForView(req.params.projectId, req.query.password);
         
-        // Увеличиваем счетчик просмотров
         await shared.db.query(
             'UPDATE projects SET views_count = views_count + 1 WHERE id = $1',
             [req.params.projectId]
@@ -327,7 +331,6 @@ io.on('connection', (socket) => {
 
 app.get('/health', async (req, res) => {
     try {
-        // Проверяем подключение к БД
         await shared.db.query('SELECT 1');
         
         res.status(200).json({ 
@@ -345,47 +348,22 @@ app.get('/health', async (req, res) => {
     }
 });
 
-app.get('/api/status', requireAuth, async (req, res) => {
-    try {
-        const userStats = await projects.getUserStats(req.session.userId);
-        const portfolioCount = await portfolio.getPortfolioItems(req.session.userId);
-        
-        res.json({
-            success: true,
-            user: await auth.getUserById(req.session.userId),
-            stats: userStats,
-            portfolioCount: portfolioCount.length
-        });
-    } catch (error) {
-        console.error('Ошибка получения статуса:', error);
-        res.status(500).json({ error: 'Ошибка получения статуса' });
-    }
-});
-
 // ==================== ОБРАБОТКА ОШИБОК ====================
 
-// 404 для API
 app.use('/api/*', (req, res) => {
     res.status(404).json({ error: 'API endpoint не найден' });
 });
 
-// 404 для страниц
 app.use((req, res) => {
     res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
 
-// Централизованный обработчик ошибок
 app.use((error, req, res, next) => {
     console.error('Ошибка сервера:', error);
     
-    const errorResponse = {
-        error: process.env.NODE_ENV === 'production' 
-            ? 'Внутренняя ошибка сервера' 
-            : error.message,
-        ...(process.env.NODE_ENV !== 'production' && { stack: error.stack })
-    };
-    
-    res.status(500).json(errorResponse);
+    res.status(500).json({ 
+        error: 'Внутренняя ошибка сервера'
+    });
 });
 
 // ==================== ЗАПУСК СЕРВЕРА ====================
@@ -394,8 +372,9 @@ async function startServer() {
     try {
         console.log('🔄 Запуск профессиональной платформы 3D Review Hub...');
         
-        // Инициализация базы данных и подключений
         await shared.connectDB();
+        await shared.checkDatabaseConnection();
+        await shared.checkTablesExist();
         await shared.initializeDatabase();
         
         server.listen(PORT, '0.0.0.0', () => {
@@ -414,7 +393,6 @@ async function startServer() {
     }
 }
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
     console.log('🔄 Получен SIGTERM, завершаем работу...');
     server.close(() => {
